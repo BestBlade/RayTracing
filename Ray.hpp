@@ -1,20 +1,25 @@
 #pragma once
-#include "Function.hpp"
-
+#include "Vector.hpp"
 class Ray {
 public:
-	vec3 ori;
-	vec3 dir, dir_inv;
-	float t;
-	float t_min, t_max;
+	float t;			//	O + dD
+	float tMin, tMax;
+	vec3 Ori;
+	vec3 Dir;
+	vec3 Dirinv;		//	(1/x, 1/y, 1/z)
 
-	Ray(const vec3& ori_, const vec3& dir_, const double t_ = 0.0) :ori(ori_), dir(dir_), t(t_) {
-		dir_inv = vec3(1.0f / dir.x, 1.0f / dir.y, 1.0f / dir.z);
-		t_min = 0;
-		t_max = INT_MAX;
+
+	Ray(const vec3& ori, const vec3& dir,float tt = 0.f) 
+		:Ori(ori), Dir(dir), t(tt), tMin(0.f), tMax(std::numeric_limits<float>::max()) {
+		Dirinv.x = 1.f / Dir.x;
+		Dirinv.y = 1.f / Dir.y;
+		Dirinv.z = 1.f / Dir.z;
 	}
 
-	vec3 operator()(float t) const {
-		return ori + dir * t;
+	Ray(const Ray& r) :Ori(r.Ori), Dir(r.Dir), Dirinv(r.Dirinv), t(r.t), tMin(r.tMin), tMax(r.tMax) {}
+
+	vec3 operator()(float tt)const {
+		//	计算交点用:ray(t)
+		return Ori + Dir * tt;
 	}
 };
