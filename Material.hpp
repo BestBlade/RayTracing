@@ -1,286 +1,198 @@
 #pragma once
 #include "Vector.hpp"
-#include "Function.hpp"
-
-enum MaterialType { DIFFUSE, MICROFACE};
-
+//	定义材质属性
+enum MaterialType {DIFFUSE,MICROFACET};
+//	材质类
 class Material {
 private:
-    vec3 reflect(const vec3& I, const vec3& N) const {
-        return I - N * 2 * dot(I, N);
-    }
+	//	计算反射公式，注意方向
+	vec3 reflect(const vec3& V, const vec3& N) const{
+		//	↖V	  ↑N	  ↗L
+		//	  ↖	  ↑	↗
+		//	    ↖↑↗
+		//		inter
+		return N * 2 * V.dot(N) - V;
+	}
+	//	菲涅尔项，可以用ior代替F0，公式在注释里
+	float fresnel(const vec3& I, const vec3& N, const float& F0) const{
+		// F0 = (n1-n2)^2 / (n1+n2)^2	反射率
+		// T0 = 1-F0	透射率
+		
+		//FSchlick(h,v,F0)=F0 + (1 − F0) * (1 − (n dot v)) ^ 5
+		return F0 + (1 - F0) * pow((1 - N.dot(I)), 5);
+	}
+	//	vec3的F0，没用到，程序里用的float的F0
+	vec3 fresnel(const vec3& I, const vec3& N, const vec3& F0) const{
+		//FSchlick(h,v,F0)=F0 + (1 − F0) * (1 − (n dot v)) ^ 5
+		return F0 + (vec3(1.f) - F0) * pow((1 - N.dot(I)), 5);
+	}
+	//	折射，暂不考虑，暂不计算透明物体（其实还没研究怎么做
+	float refract(const vec3& I, const vec3& N, const float& ior) const {
+		float F0 = (ior - 1) * (ior - 1) / ((ior + 1) * (ior + 1));
+		float T0 = 1.f - F0;
+	}
+	//	局部坐标转化为世界坐标
+	vec3 toWorld(const vec3& u, const vec3& N) const{
+		vec3 B, C;
+		if (abs(N.x) > abs(N.y)) {
+			float invLen = mysqrtinv(N.x * N.x + N.z * N.z);
+			C = vec3(N.z * invLen, 0.f, -N.x * invLen);
+		}
+		else {
+			float invLen = mysqrtinv(N.y * N.y + N.z * N.z);
+			C = vec3(0.f, N.z * invLen, -N.y * invLen);
+		}
+		B = C.cross(N);
+		return B * u.x + C * u.y + N * u.z;
+	}
+	//	D(h)的概率分布，计算半程向量H在宏观法线N和roughness参数下的概率
+	float DistributionGGX(const vec3& N, const vec3& H, float a) {
+		// D = a ^ 2
+		//	   ---------------------
+		//	   pi * ( (N*H)^2 * (a ^ 2 - 1) + 1) ^ 2
+		// a = roughness * roughness
+		float a2 = a * a;
+		float NdotH = std::max(0.f, N.dot(H));
+		float NdotH2 = NdotH * NdotH;
 
-    // Compute refraction dir using Snell's law
-    //
-    // We need to handle with care the two possible situations:
-    //
-    //    - When the ray is inside the object
-    //
-    //    - When the ray is outside.
-    //
-    // If the ray is outside, you need to make cosi positive cosi = -N.I
-    //
-    // If the ray is inside, you need to invert the refractive indices and negate the normal N
-    vec3 refract(const vec3& I, const vec3& N, const float& ior) const {
-        float cosi = max(-1.0f, min(1.0f, dot(I, N)));
-        float etai = 1, etat = ior;
-        vec3 n = N;
-        if (cosi < 0) { cosi = -cosi; }
-        else { std::swap(etai, etat); n = -N; }
-        float eta = etai / etat;
-        float k = 1 - eta * eta * (1 - cosi * cosi);
-        return k < 0 ? 0 : I * eta + n * (eta * cosi - sqrtf(k));
-    }
-    // Compute Fresnel equation
-    //
-    // \param I is the incident view dir
-    //
-    // \param N is the normal at the intersection point
-    //
-    // \param ior is the material refractive index
-    //
-    // \param[out] kr is the amount of light reflected
-    void fresnel(const vec3& I, const vec3& N, const float& ior, float& kr) const {
-        float cosi = max(-1.0f, min(1.0f, dot(I, N)));
-        float etai = 1, etat = ior;
-        if (cosi > 0) { std::swap(etai, etat); }
-        // Compute sini using Snell's law
-        float sint = etai / etat * sqrtf(max(0.f, 1 - cosi * cosi));
-        // Total internal reflection
-        if (sint >= 1) {
-            kr = 1;
-        }
-        else {
-            float cost = sqrtf(max(0.f, 1 - sint * sint));
-            cosi = fabsf(cosi);
-            float Rs = ((etat * cosi) - (etai * cost)) / ((etat * cosi) + (etai * cost));
-            float Rp = ((etai * cosi) - (etat * cost)) / ((etai * cosi) + (etat * cost));
-            kr = (Rs * Rs + Rp * Rp) / 2;
-        }
-        // As a consequence of the conservation of energy, transmittance is given by:
-        // kt = 1 - kr;
-    }
+		float denom = (NdotH2 * (a2 - 1.f) + 1.f);
+		denom = PI * denom * denom;
+		return a2 / denom;
+	}
+	//	自遮挡项G1
+	float GeometrySchlickGGX(float NdotV, float a) {
+		float denom = NdotV * (1.f - a) + a;
+		return NdotV / denom;
+	}
+	//	G(V,L,N) = G1(V,N) * G1(L,N),借鉴了unreal的计算公式
+	float GeometrySmith(const vec3& wi, const vec3& wo, const vec3& N,float roughness) {
+		float NdotL = N.dot(wo);
+		float NdotV = N.dot(wi);
+		float k = (roughness + 1) * (roughness + 1) / 8;
 
-    vec3 toWorld(const vec3& a, const vec3& N) {
-        vec3 B, C;
-        if (std::fabs(N.x) > std::fabs(N.y)) {
-            float invLen = 1.0f / std::sqrt(N.x * N.x + N.z * N.z);
-            C = vec3(N.z * invLen, 0.0f, -N.x * invLen);
-        }
-        else {
-            float invLen = 1.0f / std::sqrt(N.y * N.y + N.z * N.z);
-            C = vec3(0.0f, N.z * invLen, -N.y * invLen);
-        }
-        B = cross(C, N);
-        return  B * a.x + C * a.y + N * a.z;
-    }
-
+		return GeometrySchlickGGX(NdotL, k) * GeometrySchlickGGX(NdotV, k);
+	}
 public:
-    MaterialType m_type;
-    vec3 m_emission;
-    vec3 Kd, Ks;
+	MaterialType materialType;	//	材质类型
+	float F0;					//	反射率F0
+	float roughness;			//	粗糙度roughness
+	vec3 materialEmission;		//	材料发光强度
+	vec3 Kd;					//	材料漫反射系数（其实是颜色
+	vec3 Ks;
 
-    float F;
-    float ior;
-    float roughness;//mircoface
+	Material(MaterialType mT = DIFFUSE, vec3 mE = vec3(0.f), float f0 = 0.9, float a = 0.01)
+		:materialType(mT), materialEmission(mE), F0(f0), roughness(a) {}	//	默认构造函数，DIFFUSE情况下不会使用f0和roughess进行计算
+	//	获取材质属性
+	inline MaterialType getType() {
+		return materialType;
+	}
+	//	获取发光属性
+	inline vec3 getEmission() {
+		return materialEmission;
+	}
+	//	判断是否发光
+	inline bool hasEmission() {
+		return materialEmission.norm() > EPS ? true : false;
+	}
+	//	对光线的出射方向进行采样
+	inline vec3 sample(const vec3& wi, const vec3& N) {
+		//上半球采样取半程向量H
+		//float u = getrandom();
+		//float v = getrandom();
+		//float phi = v * 2 * PI;
+		//float costheta = 1.f - u;
+		//float sintheta = mysqrt(1 - costheta * costheta);
+		//vec3 localRay(cos(phi) * sintheta, sin(phi) * sintheta, costheta);
+		//return toWorld(localRay, N);
+		vec3 localRay;
+		if (materialType == DIFFUSE) {
+			// 漫反射情况下，对球面均匀（uniform）采样取反射方向L
+			float u = getrandom();
+			float v = getrandom();
+			float theta = 2 * PI * u;
+			float cosphi = 1.f - 2 * v;
+			float sinphi = mysqrt(1 - cosphi * cosphi);
+			localRay = vec3(cosphi * sin(theta), sinphi * sin(theta), cos(theta));
+			//	还原到世界坐标
+			return toWorld(localRay, N);
+		}
+		else if (materialType == MICROFACET) {
+			//	微表面模型下，使用Cosine-Weighted半球面采样半程向量H
+			float u = getrandom();
+			float v = getrandom();
+			float a = roughness * roughness;
+			float phi = 2 * u * PI;
+			float cos2theta = (1 - v) / (1 + v * (a * a - 1));
+			float costheta = std::min(1.0f,mysqrt(cos2theta));
+			float sintheta = mysqrt(1 - cos2theta);
+			vec3 H(sintheta * cos(phi), sintheta * sin(phi), costheta);
+			//	将H转换为世界坐标
+			H = toWorld(H, N);
+			//	根据入射wi和半程向量H求反射方向L
+			localRay = reflect(wi, H);
+			//	返回最终的反射方向L
+			return localRay;
+		}
+	}
 
-    inline Material(MaterialType t = DIFFUSE, vec3 e = vec3(0.0f)):m_type(t), m_emission(e) {}
+	inline float pdf(const vec3& wi, const vec3& wo, const vec3& N) {
+		if (materialType == DIFFUSE) {
+			if (wo.dot(N) > 0) {
+				//	发生了反射的情况下，pdf = 1/2PI
+				return 0.5f * PI_INV;
+			}
+			else {
+				//	反射没有发生
+				return 0.f;
+			}
+		}
+		else if (materialType == MICROFACET) {
+			vec3 H = (wi + wo).normalized();
+			float NdotL = N.dot(wo);
+			float NdotV = N.dot(wi);
+			//	如果乘积大于零说明是反射
+			if (NdotL * NdotV > 0.f) {
+				//	此时pdf = D*dot(N,H)/(4*dot(H,V)),根据论文来的
+				float D = DistributionGGX(N, H, roughness * roughness);	//	UE4里D项的a为roughness * roughness
+				float pdf = D * N.dot(H) / abs(4.f * H.dot(wi));
+				return pdf;
+			}
+			else {
+				//	折射，暂不考虑
+				return 0.f;
+			}
+		}
+	}
 
-    inline vec3 getEmission() {
-        return m_emission;
-    }
+	inline vec3 eval(const vec3& wi, const vec3& wo, const vec3& N) {
+		if (materialType == DIFFUSE) {
+			if (wo.dot(N) > EPS) {
+				//	接触点的颜色贡献为 Kd/PI
+				return Kd * PI_INV;
+			}
+			else {
+				return vec3(0.f);
+			}
+		}
+		else if (materialType == MICROFACET) {
+			float NdotV = N.dot(wi);
+			float NdotL = N.dot(wo);
 
-    inline MaterialType getType() {
-        return m_type;
-    }
-
-    inline bool hasEmission() {
-        if (norm(m_emission) > EPSILON) {
-            return true;
-        }
-        else {
-            return false;
-        }
-    }
-
-    // sample a ray by Material properties
-    inline vec3 sample(const vec3& wi, const vec3& N) {
-        // uniform sample on the hemisphere
-        float x_1 = get_random_float(), x_2 = get_random_float();
-        float z = std::fabs(1.0f - 2.0f * x_1);
-        float r = std::sqrt(1.0f - z * z), phi = 2 * PI * x_2;
-        vec3 localRay(r * std::cos(phi), r * std::sin(phi), z);
-        return toWorld(localRay, N);
-        //switch (m_type) {
-        //case DIFFUSE: case MICROFACE:{
-        //    // uniform sample on the hemisphere
-        //    float x_1 = get_random_float(), x_2 = get_random_float();
-        //    float z = std::fabs(1.0f - 2.0f * x_1);
-        //    float r = std::sqrt(1.0f - z * z), phi = 2 * PI * x_2;
-        //    vec3 localRay(r * std::cos(phi), r * std::sin(phi), z);
-        //    return toWorld(localRay, N);
-
-        //    break;
-        //}
-        //}
-    }
-    // given a ray, calculate the PdF of this ray
-    inline float pdf(const vec3& wi, const vec3& wo, const vec3& N) {
-        // uniform sample probability 1 / (2 * PI)
-        if (dot(wo, N) > 0.0f)
-            return 0.5f / PI;
-        else
-            return 0.0f;
-        //switch (m_type) {
-        //case DIFFUSE: case MICROFACE:{
-        //    // uniform sample probability 1 / (2 * PI)
-        //    if (dot(wo, N) > 0.0f)
-        //        return 0.5f / PI;
-        //    else
-        //        return 0.0f;
-        //    break;
-        //}
-        //}
-    }
-    // given a ray, calculate the contribution of this ray
-    inline vec3 eval(const vec3& wi, const vec3& wo, const vec3& N) {
-        switch (m_type) {
-        case DIFFUSE: {
-            // calculate the contribution of diffuse   model
-            float cosalpha = dot(N, wo);
-            if (cosalpha > 0.0f) {
-                vec3 diffuse = Kd * eval_diffuse;
-                return diffuse;
-            }
-            else
-                return vec3(0.0f);
-            break;
-        }
-        case MICROFACE: {
-            float cosalpha = dot(N, wo);
-            float cosbeta = dot(N, wi);
-            if (cosalpha * cosbeta > 0.0f) {
-                vec3 h = normalize(wi + wo);
-                float fr = fresnelSchlick(wi, h, ior);
-                float D = DistributionGGX(N, h, roughness);
-                float G = GeometrySmith(N, wi, wo, roughness);
-
-                float bsdf = fr * D * G / fabs(4 * dot(wi, N) * dot(wo, N));
-                return Kd * bsdf;
-            }
-            else {
-                return vec3(0);
-                vec3 h(0.0f);
-                float etai = 1;
-                float etat = ior;
-
-                if (cosalpha < 0) {
-                    std::swap(etat, etai);
-                }
-                h = normalize(-(wi * etat + wo * etai));
-
-                float fr = fresnelSchlick(wi, h, ior);
-                float D = DistributionGGX(N, h, roughness);
-                float G = GeometrySmith(N, wi, wo, roughness);
-
-                float OdotH = dot(wo, h);
-                float IdotH = dot(wi, h);
-                float sqrtDenom = OdotH * etai + etat * IdotH;
-                
-                float factor = fabsf(OdotH * IdotH / (dot(N, wi) * dot(N, wo)));
-                float bsdf = factor * ((1 - fr) * D * G * etat * etai) / (sqrtDenom * sqrtDenom);
-                return Kd * bsdf;
-            }
-            break;
-        }
-        }
-    }
-
-    float DistributionGGX(const vec3& N, const vec3& H, float a) {
-        float a2 = a * a;
-        float NdotH = max(dot(N, H), 0.0f);
-        float NdotH2 = NdotH * NdotH;
-
-        float nom = a2;
-        float denom = (NdotH2 * (a2 - 1.0) + 1.0);
-        denom = PI * denom * denom;
-
-        return nom / denom;
-    }
-    float GeometrySchlickGGX(float NdotV, float k) {
-        float nom = NdotV;
-        float denom = NdotV * (1.0 - k) + k;
-
-        return nom / denom;
-    }
-    float GeometrySmith(vec3 N, vec3 V, vec3 L, float k) {
-        float NdotV = max(dot(N, V), 0.0);
-        float NdotL = max(dot(N, L), 0.0);
-        float ggx1 = GeometrySchlickGGX(NdotV, k);
-        float ggx2 = GeometrySchlickGGX(NdotL, k);
-
-        return ggx1 * ggx2;
-    }
-    float fresnelSchlick(const vec3& v, const vec3& h, const float& ior) {
-        float cosTheta = dot(v, h);
-        float R0 = pow((ior - 1) / (ior + 1), 2);
-        return R0 + (1 - R0) * pow((1 - cosTheta), 5);
-    }
-
-    vec3 ggxSample(const vec3& wo, const vec3& N,vec3& wi, float& pdf) {
-        float a = roughness;
-        float a2 = a * a;
-
-        float e0 = get_random_float();
-        float e1 = get_random_float();
-        float cos2Theta = (1 - e0) / (e0 * (a2 - 1) + 1);
-        float cosTheta = sqrt(cos2Theta);
-        float sinTheta = sqrt(1 - cos2Theta);
-        float phi = 2 * PI * e1;
-        vec3 localdir(sinTheta * cos(phi), sinTheta * sin(phi), cosTheta);
-        vec3 h = toWorld(localdir, N);
-
-
-        float fr = fresnelSchlick(wo, h, ior);
-        bool isReflect = get_random_float() < fr;
-        if (isReflect) {
-            wi = h * 2.0f * dot(wo, h) - wo;
-            if (dot(wo, N) * dot(wi, N) <= 0) {
-                pdf = 0;
-                return vec3(0);
-            }
-
-            float D = DistributionGGX(N, h, roughness);
-            pdf = fr * D * dot(h, N) / (4 * (fabs(dot(wo, h))));
-            float G = GeometrySmith(N, wi, wo, roughness);
-            float bsdf = fr * D * G / fabs(4.0 * dot(N, wi) * dot(N, wo));
-
-            return Kd * bsdf;
-        }
-        else {
-            pdf = 0;
-            return vec3(0);
-            float etai = 1.f, etat = ior;
-            wi = refract(-wo, h, ior);
-            if (dot(wo, N) < 0.f) {
-                std::swap(etai, etat);
-            }
-            if (dot(wo, N) * dot(wi, N) > 0.0f || norm(wi) == 0) {
-                pdf = 0.0f;
-                return vec3(0.0f);
-            }
-            float Dh = DistributionGGX(N, h, roughness);
-            float HoWo = dot(h, wo);
-            float HoWi = dot(h, wi);
-            float sqrtDenom = etai * HoWo + etat * HoWi;
-            float dwh_dwi = (etat * etat * fabsf(HoWi)) / (sqrtDenom * sqrtDenom);
-            pdf = Dh * dot(h, N) * dwh_dwi * (1 - fr);
-
-            float Gwowih = GeometrySmith(N, wi, wo, roughness);
-            float factor = fabsf(HoWo * HoWi / (dot(N, wi) * dot(N, wo)));
-            float bsdf = factor * ((1 - fr) * Dh * Gwowih * etat * etat) /
-                (sqrtDenom * sqrtDenom);
-            return Kd * bsdf;
-        }
-    }
+			//	反射
+			if (NdotV * NdotL > 0.f) {
+				vec3 H = (wi + wo).normalized();
+				float F = fresnel(wi, H, F0);
+				float D = DistributionGGX(N, H, roughness * roughness);		//	应该和156行的D计算方法一致，统一为roughness^2
+				float G = GeometrySmith(wi, wo, N, roughness);
+				//	微表面模型下高光项为 DFG/(4*dot(N,V)*dot(N,L))
+				float specular = D * F * G / (4.f * NdotV * NdotL);
+				return Kd * specular;
+			}
+			//	折射
+			else {
+				//	暂时不计算折射
+				return vec3(0.f);
+			}
+		}
+	}
 };
