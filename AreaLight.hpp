@@ -1,25 +1,18 @@
 #pragma once
 #include "Light.hpp"
-#include "Vector.hpp"
 #include "Function.hpp"
-//面光源
+//	闈㈠厜婧愮被锛屽疄闄呬笂娌℃湁鐢ㄥ埌
 class AreaLight : public Light {
 public:
-    float length;
-    vec3 normal;
-    vec3 u;
-    vec3 v;
+	vec3 normal;
+	vec3 u;
+	vec3 v;
 
-    AreaLight(const vec3& p, const vec3& i) : Light(p, i) {
-        normal = vec3(0, -1, 0);
-        u = vec3(1, 0, 0);
-        v = vec3(0, 0, 1);
-        length = 100;
-    }
+	AreaLight(const vec3& p, const vec3& i) :Light(p, i), normal(0, -1, 0), u(1, 0, 0), v(0, 0, 1) {}
 
-    vec3 SamplePoint() const {
-        auto randU = get_random_float();
-        auto randV = get_random_float();
-        return position + u * randU + v * randV;
-    }
+	vec3 sample() {
+		float du = getrandom();
+		float dv = getrandom();
+		return position + u * du + v * dv;
+	}
 };
