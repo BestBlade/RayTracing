@@ -1,88 +1,88 @@
+#pragma once
 #include "Object.hpp"
-#include "Vector.hpp"
-#include "Bounds3.hpp"
 #include "Material.hpp"
 
-class Sphere : public Object{
+//	球面类，未测试是否正确
+class Sphere :public Object {
 public:
-    vec3 center;
-    float radius, radius2;
-    Material *m;
-    float area;
-    Sphere(const vec3 &c, const float &r, Material* mt = new Material()) : center(c), radius(r), radius2(r * r), m(mt), area(4 * PI *r *r) {}
-    bool intersect(const Ray& ray) {
-        // analytic solution
-        vec3 L = ray.ori - center;
-        float a = dot(ray.dir, ray.dir);
-        float b = 2 * dot(ray.dir, L);
-        float c = dot(L, L) - radius2;
-        float t0, t1;
-        float area = 4 * PI * radius2;
-        if (!solveQuadratic(a, b, c, t0, t1)) return false;
-        if (t0 < 0) t0 = t1;
-        if (t0 < 0) return false;
-        return true;
-    }
-    bool intersect(const Ray& ray, float &tnear, uint32_t &index) const
-    {
-        // analytic solution
-        vec3 L = ray.ori - center;
-        float a = dot(ray.dir, ray.dir);
-        float b = 2 * dot(ray.dir, L);
-        float c = dot(L, L) - radius2;
-        float t0, t1;
-        if (!
-        solveQuadratic(a, b, c, t0, t1)) return false;
-        if (t0 < 0) t0 = t1;
-        if (t0 < 0) return false;
-        tnear = t0;
+	float radius, radius2;		//	定义半径r，半径平方r2
+	float area;					//	球表面积
+	Material* m;				//	球的材质
+	vec3 center;				//	球中心位置
 
-        return true;
-    }
-    Intersection getIntersection(Ray ray){
-        Intersection result;
-        result.happened = false;
-        vec3 L = ray.ori - center;
-        float a = dot(ray.dir, ray.dir);
-        float b = 2 * dot(ray.dir, L);
-        float c = dot(L, L) - radius2;
-        float t0, t1;
-        if (!solveQuadratic(a, b, c, t0, t1)) return result;
-        if (t0 < 0) t0 = t1;
-        if (t0 < 0) return result;
-        result.happened=true;
+	Sphere(const vec3& c, float r, Material* m = new Material()) 
+		:center(c), radius(r), radius2(r* r), m(m), area(4 * PI * radius2) {}
 
-        result.coords = vec3(ray.ori + ray.dir * t0);
-        result.normal = normalize(vec3(result.coords - center));
-        result.m = this->m;
-        result.obj = this;
-        result.distance = t0;
-        return result;
+	bool isIntersect(const Ray& ray) {
+		return getIntersection(ray).happened;
+	}
+	//	判断光线是否与球相交
+	Intersection getIntersection(const Ray& ray) {
+		// O
+		//	↘（t1）
+		//	 ↑↘
+		//	 ↑  ↘
+		//	 C→	→(t2)		
 
-    }
-    void getSurfaceProperties(const vec3 &P, const vec3 &I, const uint32_t &index, const vec2 &uv, vec3 &N, vec2 &st) const
-    { N = normalize(P - center); }
+		//	假设从O到C为S，则S与D夹角为锐角才有可能光线与球相交，并且O要在球外部
+		//	计算S在D上的投影L，根据S^2-L^2可以计算出圆心C到光线的距离h^2,如果h^2 > r^2说明没有交点
+		//	根据r^2-h^2可以求出割线长度的一半
+		//	可以根据S在D上的投影l，通过+x和-x计算出两个接触点，-x为近的接触点
+		vec3 o = ray.Ori;
+		vec3 d = ray.Dir;
+		Intersection inter;
+		vec3 S = center - o;
+		if (S.dot(d) < 0 || S.dot(S) < radius2) {
+			// 夹角大于90或者光源在内部
+			return inter;
+		}
+		float l = S.dot(d);
+		float h2 = S.dot(S) - l * l;
+		if (h2 > radius2) {
+			//	圆心到直线距离大于半径
+			return inter;
+		}
+		float x = mysqrt(radius2 - h2);		
+		float t = l - x;
 
-    //vec3 evalDiffuseColor(const vec2 &st)const {
-    //    return m->getColor();
-    //}
-    Bounds3 getBounds(){
-        vec3 b1(center.x - radius, center.y - radius, center.z - radius);
-        vec3 b2(center.x + radius, center.y + radius, center.z + radius);
-        return Bounds3(b1, b2);
-    }
-    void Sample(Intersection &pos, float &pdf){
-        float theta = 2.0 * PI * get_random_float(), phi = PI * get_random_float();
-        vec3 dir(std::cos(phi), std::sin(phi)*std::cos(theta), std::sin(phi)*std::sin(theta));
-        pos.coords = center + dir * radius;
-        pos.normal = dir;
-        pos.emit = m->getEmission();
-        pdf = 1.0f / area;
-    }
-    float getArea(){
-        return area;
-    }
-    bool hasEmit(){
-        return m->hasEmission();
-    }
+		inter.happened = true;
+		inter.coords = ray(t);
+		inter.distance = t;
+		inter.emit = m->getEmission();
+		inter.m = this->m;
+		inter.normal = (inter.coords - center).normalized();
+		inter.obj = this;
+		return inter;
+	}
+
+	Bounds getBounds() const {
+		vec3 pMax = center + radius;
+		vec3 pMin = center - radius;
+		return Bounds(pMin, pMax);
+	}
+	// 对球面采样，感觉用不到
+	float Sample(Intersection & inter) const{
+		float pdf = 1. / area;
+		// 球面均匀采样
+		// theta在0-2pi上均匀采样
+		// phi = arccos(1 - 2 * t),t在0-1上均匀采样
+		float costheta = cos(getrandom() * 2 * PI);
+		float sintheta = mysqrt(1.f - costheta * costheta);
+		float cosphi = 1.f - 2 * getrandom();
+		float sinphi = mysqrt(1.f - cosphi * cosphi);
+
+		float x = radius * sinphi * costheta;
+		float y = radius * sinphi * sintheta;
+		float z = radius * cosphi;
+		inter.coords = vec3(x, y, z) + center;
+		inter.normal = (inter.coords - center).normalized();
+		inter.emit = m->getEmission();
+		return pdf;
+	}
+	float getArea()const {
+		return area;
+	}	
+	bool hasEmit()const{
+		return m->hasEmission();
+	}
 };
