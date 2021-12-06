@@ -1,15 +1,10 @@
 #pragma once
-
-//µÆ¹â»ùÀà
+#include "Vector.hpp"
+//	ç¯å…‰ç±»ï¼Œæ²¡ç”¨åˆ°
 class Light {
 public:
 	vec3 position;
 	vec3 intensity;
-
-	Light(const vec3& p, const vec3& i) {
-		position = p;
-		intensity = i;
-	}
-
-	virtual ~Light() = default;//ĞéÎö¹¹£¬ÓĞ×ÓÀà¼Ì³Ğ
+	Light(const vec3& p, const vec3& i) :position(p), intensity(i) {}
+	virtual ~Light() = default;
 };
