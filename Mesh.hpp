@@ -1,40 +1,35 @@
 #pragma once
 #include "Function.hpp"
 #include "OBJ_LOADER.hpp"
-#include "BVHTree.hpp"
-#include "Bounds3.hpp"
-#include "Intersection.hpp"
-#include "Ray.hpp"
 #include "Material.hpp"
 #include "Triangle.hpp"
-
-class Mesh :public Object {
+#include "BVHTree.hpp"
+#include "Object.hpp"
+//	ç½‘æ ¼é¢ç±»
+class Mesh : public Object {
 public:
-	Bounds3 bounding_box;
-	unsigned int numTriangles;
+	unsigned int numTriangles;	//	ä¸‰è§’å½¢æ•°é‡
+	float area;					//	ç½‘æ ¼åŒ…å«ä¸‰è§’å½¢æ€»é¢ç§¯
+	BVHAccel* bvh;				//	ç½‘æ ¼æ„å»ºçš„BVHæ ‘æ ¹èŠ‚ç‚¹
+	Material* m;				//	å½“å‰æè´¨
+	Bounds boundingBox;			//	åŒ…å›´ç›’
 
-	std::unique_ptr<vec3[]> vertices;
-	std::unique_ptr<unsigned int[]> vertexIndex;
-	std::unique_ptr<vec2[]> stCoordinates;
+	std::vector<Triangle> triangles;	//	å­˜å‚¨ä¸‰è§’å½¢çš„æ•°ç»„
 
-	std::vector<Triangle> triangles;
-
-	BVHAccel* bvh;
-	float area;
-
-	Material* m;
-
-	Mesh(const std::string& filename, Material* m_ = new Material()) {
+	Mesh(const std::string& filename, Material* _m = new Material()) {
 		objl::Loader loader;
-		loader.LoadFile(filename);
+		loader.LoadFile(filename);	//	ä½¿ç”¨OBJ_LOADERåŠ è½½æ¨¡å‹ï¼Œä¸€ä¸ª.objæ–‡ä»¶æ˜¯ä¸€ä¸ªMesh
 		area = 0;
-		m = m_;
+		m = _m;
+		numTriangles = 0;
+
 		assert(loader.LoadedMeshes.size() == 1);
 		auto mesh = loader.LoadedMeshes[0];
-		//×îĞ¡¶¥µãºÍ×î´ó¶¥µã
-		vec3 minVert(INT_MAX);
-		vec3 maxVert(INT_MIN);
 
+		vec3 pMin(INT_MAX);
+		vec3 pMax(INT_MIN);
+
+		//	éå†æ‰€æœ‰é¡¶ç‚¹
 		for (int i = 0; i < mesh.Vertices.size(); i += 3) {
 			vec3 face[3];
 
@@ -42,99 +37,64 @@ public:
 				vec3 tmp(
 					mesh.Vertices[i + j].Position.X,
 					mesh.Vertices[i + j].Position.Y,
-					mesh.Vertices[i + j].Position.Z);
+					mesh.Vertices[i + j].Position.Z
+				);
 
 				face[j] = tmp;
+				
+				//	è®¡ç®—åŒ…å›´ç›’çš„é¡¶ç‚¹
+				pMin.x = std::min(pMin.x, tmp.x);
+				pMin.y = std::min(pMin.y, tmp.y);
+				pMin.z = std::min(pMin.z, tmp.z);
 
-				minVert = vec3(
-					min(tmp.x, minVert.x),
-					min(tmp.y, minVert.y),
-					min(tmp.z, minVert.z));
-				maxVert = vec3(
-					max(tmp.x, maxVert.x),
-					max(tmp.y, maxVert.y),
-					max(tmp.z, maxVert.z));
+				pMax.x = std::max(pMax.x, tmp.x);
+				pMax.y = std::max(pMax.y, tmp.y);
+				pMax.z = std::max(pMax.z, tmp.z);
 			}
-
-			triangles.emplace_back(face[0], face[1], face[2], m_);
+			//	å°†faceä¸­å­˜çš„ä¸‰ä¸ªé¡¶ç‚¹å­˜å…¥trianglesä¸­ï¼ŒåŸåœ°æ„é€ 
+			triangles.emplace_back(face[0], face[1], face[2], _m);
+			++numTriangles;	//	è®¡æ•°+1
 		}
-		//µ±Ç°MeshµÄ°üÎ§ºĞ
-		bounding_box = Bounds3(minVert, maxVert);
+		//	æ„å»ºMeshåŒ…å›´ç›’
+		boundingBox = Bounds(pMin, pMax);
 
-		//´æ´¢Ã¿¸öÈı½ÇĞÎ
-		//std::vector<Object*> ptrs(triangles.size());
-		//for (int i = 0; i < triangles.size(); ++i) {
-		//	ptrs[i] = &triangles[i];
-		//	area += triangles[i].area;
-		//}
 		std::vector<Object*> ptrs;
-		for (auto& tri : triangles) {
+		//	å°†ä¸‰è§’å½¢å­˜å…¥Object*æ•°ç»„ä¸­ï¼Œè®¡ç®—æ€»é¢ç§¯
+		for (auto &tri : triangles) {
 			ptrs.emplace_back(&tri);
-			//MeshµÄÃæ»ıÎªËùÓĞÈı½ÇĞÎÃæ»ıµÄºÍ
 			area += tri.area;
 		}
+		//	åˆ©ç”¨Object*æ•°ç»„æ„å»ºå½“å‰Meshçš„BVHæ ‘
 		bvh = new BVHAccel(ptrs);
 	}
-
-	//	±éÀúMeshÖĞµÄÃ¿Ò»¸öÈı½ÇĞÎ£¬ÅĞ¶ÏÊÇ·ñÓë¹âÏßÏà½»
-	bool intersect(const Ray& ray, float& tnear, unsigned int& index) const {
-		bool isIntersect = false;
-		//	numTriangles´ÓºÎ¶øÀ´
-		for (int i = 0; i < numTriangles; ++i) {
-			const vec3& v0 = vertices[vertexIndex[i * 3]];
-			const vec3& v1 = vertices[vertexIndex[i * 3 + 1]];
-			const vec3& v2 = vertices[vertexIndex[i * 3 + 2]];
-
-			float t, u, v;
-			if (rayTriangleIntersect(v0, v1, v2, ray.ori, ray.dir, t, u, v) && t < tnear) {
-				tnear = t;
-				index = i;
-				isIntersect = 1;
-			}
-		}
-		return isIntersect;
+	//	åˆ¤æ–­æ˜¯å¦ç›¸äº¤
+	bool isIntersect(const Ray& ray)  {
+		return getIntersection(ray).happened;
 	}
-
-	Bounds3 getBounds() {
-		return bounding_box;
-	}
-
-	float getArea() {
-		return area;
-	}
-
-	//	¼ÆËãÏà½»Î»ÖÃ
-	Intersection getIntersection(Ray ray) {
+	//	è·å–ç›¸äº¤ç‚¹
+	Intersection getIntersection(const Ray& ray) {
 		Intersection inter;
 		if (bvh) {
-			inter = bvh->Intersect(ray);
+			inter = bvh->getIntersection(ray);
 		}
 		return inter;
 	}
-
-	//	ÔÚÏà½»µã²ÉÑù
-	void Sample(Intersection& pos, float& pdf) {
-		bvh->Sample(pos, pdf);
-		pos.emit = m->getEmission();
+	//	æˆ–å–åŒ…å›´ç›’
+	Bounds getBounds()const {
+		return boundingBox;
 	}
-
-	bool hasEmit() {
+	//	è·å–é¢ç§¯
+	float getArea()const {
+		return area;
+	}
+	//	å¯¹Meshé‡‡æ ·ï¼Œåªæœ‰lightç”¨åˆ°äº†
+	float Sample(Intersection& inter) const{
+		float pdf = bvh->Sample(inter);
+		inter.emit = m->getEmission();
+		return pdf;
+	}
+	//	åˆ¤æ–­è¿™ä¸ªMeshæ˜¯å¦ä¼šå‘å…‰
+	bool hasEmit()const {
 		return m->hasEmission();
-	}
-
-	//	»ñµÃÆ½ÃæÊôĞÔ
-	void getSurfaceProperties(const vec3& P, const vec3& I, const unsigned int& index, const vec2& uv, vec3& N, vec2& st) const {
-		//	µÚindex¸öÈı½ÇĞÎµÄ¶¥µã
-		const vec3& v0 = vertices[vertexIndex[index * 3]];
-		const vec3& v1 = vertices[vertexIndex[index * 3 + 1]];
-		const vec3& v2 = vertices[vertexIndex[index * 3 + 2]];
-		vec3 e0 = vec3(v1 - v0);
-		vec3 e1 = vec3(v2 - v1);
-		N = normalize(cross(e0, e1));
-
-		const vec2& st0 = stCoordinates[vertexIndex[index * 3]];
-		const vec2& st1 = stCoordinates[vertexIndex[index * 3 + 1]];
-		const vec2& st2 = stCoordinates[vertexIndex[index * 3 + 2]];
-		st = st0 * (1 - uv.x - uv.y) + st1 * uv.x + st2 * uv.y;
 	}
 };
