@@ -1,74 +1,73 @@
 #pragma once
 #include "Function.hpp"
 #include "OBJ_LOADER.hpp"
-#include "BVHTree.hpp"
-#include "Intersection.hpp"
-#include "Ray.hpp"
+#include "Object.hpp"
 #include "Material.hpp"
-#include "Vector.hpp"
 
-class Triangle :public Object {
+//	ä¸‰è§’å½¢ç±»
+class Triangle : public Object {
 public:
-	vec3 v0, v1, v2;	//Èı¸ö¶¥µã
-	vec3 e1, e2;		//Á½¸ö±ß e1 = v1-v0,e2 = v2-v0
-	vec3 t0, t1, t2;	//¶¥µãÌùÍ¼
-	vec3 normal;		//·¨Ïß
-	float area;			//Ãæ»ı
-	Material* m;		//²ÄÖÊ	
+	vec3 v0, v1, v2;	//ä¸‰ä¸ªé¡¶ç‚¹
+	vec3 e1, e2;		//ä¸¤æ¡è¾¹
+	vec3 normal;		//æ³•çº¿
+	float area;			//é¢ç§¯
+	Material* m;		//æè´¨
 
-	Triangle(vec3 v0_, vec3 v1_, vec3 v2_, Material* m_ = nullptr)
-		:v0(v0_), v1(v1_), v2(v2_), m(m_) {
+	Triangle(const vec3& _v0, const vec3& _v1, const vec3& _v2, Material* _m = nullptr)
+		:v0(_v0), v1(_v1), v2(_v2), m(_m) {
 		e1 = v1 - v0;
 		e2 = v2 - v0;
-		normal = normalize(cross(e1, e2));
-		area = norm(cross(e1, e2)) * 0.5f;
+		normal = cross(e1, e2).normalized();
+		area = cross(e1, e2).norm() * 0.5f;
 	}
 
-	bool intersect(const Ray& ray, float& tnear, unsigned int& index) const override {
-		return false;
+	bool isIntersect(const Ray& ray) {
+		return getIntersection(ray).happened;
 	}
 
-	//ÅĞ¶Ï¹âÏßÊÇ·ñÓëÈı½ÇÃæÏà½»
-	Intersection getIntersection(Ray ray) override {
-	// ray = O + tD
-	// (1 - u - v) * v0 + u * v1 + v * v2 = O + tD ,u >= 0,v >= 0
-	//  t                       S2 * E2     S = O - v0    |  S1 = D cross E2
-	//  u   =   1/(S1 * E1)  *  S1 * S      E1 = v1 - v2  |  S2 = S cross E1
-	//  v                       S2 * D      E2 = v2 - v0  |
+	Intersection getIntersection(const Ray& ray)  {
+		// ray = O + tD
+		// (1 - u - v) * v0 + u * v1 + v * v2 = O + tD ,u >= 0,v >= 0
+		//  t                       S2 * E2     S = O - v0    |  S1 = D cross E2
+		//  u   =   1/(S1 * E1)  *  S1 * S      E1 = v1 - v2  |  S2 = S cross E1
+		//  v                       S2 * D      E2 = v2 - v0  |
+		vec3 o = ray.Ori;
+		vec3 d = ray.Dir;
 		Intersection inter;
-		if (dot(ray.dir, normal) > 0) {
-			//Â·¾¶ºÍ·¨ÏßÊÇ¶Û½Ç£¬¾ø¶Ô²»Ïà½»
-			return inter;
-		}
-		float u, v, t_tmp;
 
-		vec3 S1 = cross(ray.dir, e2);
-		float det = dot(S1, e1);
-		if (fabs(det) < EPSILON) {
+		if (normal.dot(d) > 0) {
+			//å…‰çº¿æ–¹å‘ä¸æ³•çº¿æ–¹å‘ä¸€è‡´çš„æ—¶å€™ä¸å¯èƒ½ä¸ä¸‰è§’å½¢æ­£é¢ç›¸äº¤
 			return inter;
 		}
 
-		float det_inv = 1.0f / det;
-		vec3 S = ray.ori - v0;
+		float u, v, t;
 
-		u = dot(S, S1) * det_inv;
+		vec3 S1 = d.cross(e2);
+		float denom = S1.dot(e1);
+		if (abs(denom) < EPS) {
+			return inter;
+		}
+
+		float denomInv = 1.f / denom;
+		vec3 S = o - v0;
+		u = S1.dot(S) * denomInv;
 		if (u < 0 || u > 1) {
 			return inter;
 		}
 
-		vec3 S2 = cross(S, e1);
-		v = dot(S2, ray.dir) * det_inv;
-		if (v < 0 || u + v > 1) {
+		vec3 S2 = S.cross(e1);
+		v = S2.dot(d) * denomInv;
+		if (v < 0 || v + u > 1) {
 			return inter;
 		}
 
-		t_tmp = dot(S2, e2) * det_inv;
-		if (t_tmp < 0) {
+		t = S2.dot(e2) * denomInv;
+		if (t < 0) {
 			return inter;
 		}
 
-		inter.coords = ray(t_tmp);
-		inter.distance = t_tmp;
+		inter.coords = ray(t);
+		inter.distance = t;
 		inter.m = m;
 		inter.normal = normal;
 		inter.obj = this;
@@ -76,34 +75,27 @@ public:
 		inter.emit = m->getEmission();
 		return inter;
 	}
-	//	Èı½ÇÃæÓÃ²»×ÅÓÃ²»×Å
-	void getSurfaceProperties(const vec3& P, const vec3& I, const unsigned int& index, const vec2& uv, vec3& N, vec2& st) const override {
-		N = normal;
+
+	Bounds getBounds()const {
+		return Union(Bounds(v0, v1), v2);
+	}
+	// å¯¹ä¸‰è§’å½¢å…‰æºé‡‡æ ·
+	float Sample(Intersection& inter) const{
+		float x = mysqrt(getrandom());
+		float y = getrandom();
+
+		float pdf = 1.f / area;
+
+		inter.coords = v0 * (1 - x) + v1 * (x * (1 - y)) + v2 * x * y;
+		inter.normal = normal;
+		return pdf;
 	}
 
-	//	ÇóÈı½ÇĞÎµÄ°üÎ§ºĞ
-	Bounds3 getBounds() override {
-		return Union(Bounds3(v0, v1), v2);
-	}
-	//	¶ÔÈı½ÇĞÎ²ÉÑù
-	void Sample(Intersection& pos, float& pdf) {
-		//	²ÉÑù²¢»Ø´«×ø±êºÍpdf
-		float x = sqrt(get_random_float());
-		float y = get_random_float();
-		//	pdfÎªÃæ»ıµÄµ¹Êı
-		pdf = 1.0 / area;
-		//	ºÏ¼ÆÎª1£¬»¹ÔÚÈı½ÇĞÎÄÚ
-		pos.coords = v0 * (1.0f - x) + v1 * float(x * (1.0 - y)) + v2 * x * y;
-		//	½Ó´¥µãµÄ·¨ÏßºÍÈı½ÇĞÎ·½ÏòÒ»ÖÂ
-		pos.normal = this->normal;
-	}
-
-	float getArea() {
+	float getArea()const {
 		return area;
 	}
-	//ÊÇ·ñ·¢¹â
-	bool hasEmit() {
-		//µÃ¿´²ÄÖÊÊÇ·ñÄÜ·¢¹â
+
+	bool hasEmit()const {
 		return m->hasEmission();
 	}
 };
