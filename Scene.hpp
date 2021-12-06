@@ -1,13 +1,12 @@
 #pragma once
-#include "Function.hpp"
 #include "BVHTree.hpp"
 #include "AreaLight.hpp"
-#include "Light.hpp"
+#include "Function.hpp"
 
 class Scene {
 public:
-	int width;
-	int height;
+	unsigned int width;
+	unsigned int height;
 	float fov;
 	float RussianRoulette;
 	BVHAccel* BVH;
@@ -15,68 +14,56 @@ public:
 	std::vector<Object*> objects;
 	std::vector<std::unique_ptr<Light>> lights;
 
-	Scene(int w, int h) :width(w), height(h) {}
-
+	Scene(unsigned int w, unsigned int h) :width(w), height(h) {}
+	//	添加物体
 	void Add(Object* obj) {
 		objects.emplace_back(obj);
 	}
-
+	//	添加灯光（没用到）
 	void Add(std::unique_ptr<Light> light) {
 		lights.emplace_back(std::move(light));
 	}
-
+	//	创建场景BVH
 	void buildBVH() {
-		std::cout << " - Generating BVH...\n\n";
+		std::cout << "[!]Generating BVH...\n\n";
 		BVH = new BVHAccel(objects, 1, BVHAccel::SplitMethod::NAIVE);
 	}
 
-	void sampleLight(Intersection& pos, float& pdf) const {
-		float emit_area_sum = 0;
+	//	获取采样点属性，并且返回采样点pdf,只有light用
+	float SampleLight(Intersection& inter) const{
+		float emitAreaSum = 0;
 		for (unsigned int i = 0; i < objects.size(); ++i) {
 			if (objects[i]->hasEmit()) {
-				emit_area_sum += objects[i]->getArea();
+				emitAreaSum += objects[i]->getArea();
 			}
 		}
 
-		float p = get_random_float() * emit_area_sum;
-		emit_area_sum = 0;
-		for (int i = 0; i < objects.size(); ++i) {
+		float p = getrandom() * emitAreaSum;
+		emitAreaSum = 0;
+		float pdf;
+		for (unsigned int i = 0; i < objects.size(); ++i) {
 			if (objects[i]->hasEmit()) {
-				emit_area_sum += objects[i]->getArea();
-				if (p < emit_area_sum) {
-					objects[i]->Sample(pos, pdf);
+				emitAreaSum += objects[i]->getArea();
+				if (p < emitAreaSum) {
+					pdf = objects[i]->Sample(inter);
 					break;
 				}
 			}
 		}
+		return pdf;
+	}
+	//	计算光线与场景交点
+	Intersection getIntersection(const Ray& ray)const {
+		return BVH->getIntersection(ray);
 	}
 
-	Intersection intersect(const Ray& ray) const {
-		return BVH->Intersect(ray);
-	}
-
-	bool trace(const Ray& ray, const std::vector<Object*>& obj, float& tNear, unsigned int& index, Object** hitObj) {
-		*hitObj = nullptr;
-		for (unsigned int i = 0; i < obj.size(); ++i) {
-			float tNearI = INT_MAX;
-			unsigned int indexI;
-			vec2 uvI;
-			if (obj[i]->intersect(ray, tNearI, indexI) && tNearI < tNear) {
-				tNear = tNearI;
-				index = indexI;
-				*hitObj = obj[i];
-			}
-		}
-		return (*hitObj != nullptr);
-	}
-
-	vec3 castRay(const Ray& ray, int depth) const {
+	vec3 castRay(const Ray& ray, unsigned int depth) const{
 		// TO DO Implement Path Tracing Algorithm here
 		//  eye					light
-		//    �K               �J �� light.norm
-		//   -wo�K           �Jws
-		//        �K   N   �J
-		//          �K �� �J
+		//    ↖               ↗ ↓ light.norm
+		//   -V ↖           ↗ L
+		//        ↖   N   ↗
+		//          ↖ ↑ ↗
 		//            pos
 		//  ray = o + td
 		//  if the ray landed on the object,there's a direct contact point : pos
@@ -95,90 +82,79 @@ public:
 		//  if the random num > RR,stop caculate the reflect from other place(except light)
 		//  caculate L_indir
 		//  eye                 pos2
-		//    �K               �J
-		//   -wo�K           �Jwi
-		//        �K   N   �J
-		//          �K �� �J
+		//    ↖               ↗
+		//   -V ↖           ↗indirL
+		//        ↖   N   ↗
+		//          ↖ ↑ ↗
 		//            pos
 		//  wi_ = wi
 		//  here,use [pos.m->sample(wi_,N)] to get a wo_
 		//  the reflectray = {pos,wo_}
 		//  caculate pos2 with intersect(reflectray)
 		//  the pos2 can't be a light so [pos2.m->hasEmission] should be [false]
-		//  the f_r_ = pos.m->eval(wi_,wo_,N)
+		//  the brdf = pos.m->eval(wi_,wo_,N)
 		//  cos_theta_ = N * wo_
 		//  pdf_ = pos.m.pdf(wi,N)
 		//  pos2.emssion = castray(reflectray,depth+1)
-		//  L_indir = pos2.emssion * f_r_ * cos_theta_ / pdf_ / RR
+		//  L_indir = pos2.emssion * brdf * cos_theta_ / pdf_ / RR
 
-		auto format = [](vec3& a) {
+		//	将结果规整，防止出现负数
+		auto format = [&](vec3& a) {
 			if (a.x < 0) a.x = 0;
 			if (a.y < 0) a.y = 0;
 			if (a.z < 0) a.z = 0;
 		};
-		Intersection pos = intersect(ray);
-		if (!pos.happened) {
-			return vec3(0.0f);
+		//	如果从相机来的光线没办法和场景接触，说明没看到东西
+		Intersection inter = getIntersection(ray);
+		if (!inter.happened) {
+			return vec3(0.f);
 		}
-		if (pos.m->hasEmission()) {
-			if (depth == 0) {
-				return pos.emit;
-			}
-			return vec3(0);
+		//	如果看到了灯光，但不是直接看到的(depth!=0)，就不管
+		if (inter.m->hasEmission()) {
+			return depth == 0 ? inter.emit : vec3(0.f);
 		}
 
-		Intersection light;
-		float pdf;
-		sampleLight(light, pdf);
+		Intersection lightpos;
+		float pdf = SampleLight(lightpos);	//	对灯光采样，并返回对应的pdf
 
-		vec3 pos2light = light.coords - pos.coords;
-		float d2 = dot(pos2light, pos2light);
-		//	w sample
-		vec3 ws = normalize(pos2light);
-		vec3 wo = normalize(-ray.dir);
-		vec3 N = pos.normal;
+		vec3 L = lightpos.coords - inter.coords;
+		float distance2 = L.dot(L);		//	计算距离的平方
+		vec3 V = -ray.Dir;				//	ray.dir是从相机看向交点，但是V需要从交点到相机，所以V = -ray.dir
+		vec3 N = inter.normal;
+		L.normalize();
 
-		Ray pos2lightray(pos.coords, ws);
-		Intersection t = intersect(pos2lightray);
+		Ray inter2light(inter.coords, L);	//	计算从接触点inter出发沿着L(wo)方向的光线是否能与灯光接触
+		Intersection t = getIntersection(inter2light);
 
-		vec3 L_dir(0.0);
-
-		if (t.happened && norm(t.coords - light.coords) < 0.01) {
-
-			L_dir = light.emit * pos.m->eval(ws, wo, N) * dot(ws, N) * dot(-ws, light.normal) / (pdf * d2);
-
-			format(L_dir);
+		vec3 LightDir(0.f);
+		//	如果打到了别的物体，norm就不为0，说明路径被阻挡了
+		if (t.happened && (t.coords - lightpos.coords).norm() < 0.01f) {
+			//	直接光照计算公式
+			//	lightpos.emit * inter.m->eval(V, L, N)这里的两个vec3的乘法是cwiseProduct，不是点乘dot
+			LightDir = lightpos.emit * inter.m->eval(V, L, N)
+				* L.dot(N) * lightpos.normal.dot(-L) / (pdf * distance2);
+			format(LightDir);
 		}
-		if (get_random_float() > RussianRoulette) {
-			return L_dir;
+		//	俄罗斯轮盘赌，停止递归
+		if (getrandom() > RussianRoulette) {
+			return LightDir;
 		}
-		//return L_dir;
-
-		vec3 L_indir;
-
-		if (pos.m->getType() == MICROFACE) {
-			float pdf_;
-			vec3 wi;
-			vec3 brdf = pos.m->ggxSample(wo, N, wi, pdf_);
-			if (pdf_ > 0) {
-				wi = normalize(wi);
-				Ray ref(pos.coords, wi);
-				Intersection pos2 = intersect(ref);
-				if (pos2.happened && !pos2.m->hasEmission()) {
-					L_indir = castRay(ref, depth + 1)
-						* brdf * fabs(dot(wi, N))
-						/ (pdf_ * RussianRoulette);
-					format(L_indir);
-				}
+		//	如果是次级反射
+		vec3 LightInDir(0.f);
+		vec3 inDirL = inter.m->sample(V, N).normalized();	//	采样出射光线L的方向
+		float inDirpdf = inter.m->pdf(V, inDirL, N);		//	计算pdf，包括DIFFUSE和MICROFACET
+		if (inDirpdf > 0) {
+			Ray next(inter.coords, inDirL);			
+			Intersection inter2 = getIntersection(next);	//	计算inDirL会不会打到物体
+			if (inter2.happened) {
+				//	如果跟物体有接触就可以计算次级反射贡献
+				vec3 brdf = inter.m->eval(V, inDirL, N);
+				LightInDir = castRay(next, depth + 1)
+					* brdf * abs(N.dot(inDirL)) / (inDirpdf * RussianRoulette);
+				format(LightInDir);
 			}
 		}
-		else {
-			vec3 wi = normalize(pos.m->sample(wo, N));
-			L_indir = castRay(Ray(pos.coords, wi), depth + 1)
-				* pos.m->eval(wo, wi, N) * dot(wi, N)
-				/ (pos.m->pdf(wo, wi, N) * RussianRoulette);
-			format(L_indir);
-		}
-		return L_indir + L_dir;
+		//	返回直接光照和间接光照结果
+		return LightInDir + LightDir;
 	}
 };
