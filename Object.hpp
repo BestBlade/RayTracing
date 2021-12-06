@@ -1,18 +1,16 @@
 #pragma once
-#include "Function.hpp"
-#include "Intersection.hpp"
-#include "Bounds3.hpp"
+#include "Bounds.hpp"
 #include "Ray.hpp"
+#include "Intersection.hpp"
 
 class Object {
 public:
-    Object() {}
-    virtual ~Object() {}
-    virtual bool intersect(const Ray& ray, float&, uint32_t&) const = 0;
-    virtual Intersection getIntersection(Ray _ray) = 0;
-    virtual void getSurfaceProperties(const vec3&, const vec3&, const uint32_t&, const vec2&, vec3&, vec2&) const = 0;
-    virtual Bounds3 getBounds() = 0;
-    virtual float getArea() = 0;
-    virtual void Sample(Intersection& pos, float& pdf) = 0;
-    virtual bool hasEmit() = 0;
+	Object() {};
+	virtual ~Object() {};
+	virtual bool isIntersect(const Ray& ray) = 0;				//	判断是否与光线Ray相交
+	virtual Intersection getIntersection(const Ray& ray) = 0;	//	求交点
+	virtual Bounds getBounds()const = 0;						//	获取包围盒
+	virtual float getArea()const = 0;							//	获取面积
+	virtual float Sample(Intersection& p)const = 0;				//	对物体采样，只有light用到了
+	virtual bool hasEmit()const = 0;							//	判断是否发光
 };
