@@ -15,21 +15,21 @@ public:
 	std::vector<std::unique_ptr<Light>> lights;
 
 	Scene(unsigned int w, unsigned int h) :width(w), height(h) {}
-	//	æ·»åŠ ç‰©ä½“
+	//	Ìí¼ÓÎïÌå
 	void Add(Object* obj) {
 		objects.emplace_back(obj);
 	}
-	//	æ·»åŠ ç¯å…‰ï¼ˆæ²¡ç”¨åˆ°ï¼‰
+	//	Ìí¼ÓµÆ¹â£¨Ã»ÓÃµ½£©
 	void Add(std::unique_ptr<Light> light) {
 		lights.emplace_back(std::move(light));
 	}
-	//	åˆ›å»ºåœºæ™¯BVH
+	//	´´½¨³¡¾°BVH
 	void buildBVH() {
 		std::cout << "[!]Generating BVH...\n\n";
 		BVH = new BVHAccel(objects, 1, BVHAccel::SplitMethod::NAIVE);
 	}
 
-	//	è·å–é‡‡æ ·ç‚¹å±æ€§ï¼Œå¹¶ä¸”è¿”å›é‡‡æ ·ç‚¹pdf,åªæœ‰lightç”¨
+	//	»ñÈ¡²ÉÑùµãÊôĞÔ£¬²¢ÇÒ·µ»Ø²ÉÑùµãpdf,Ö»ÓĞlightÓÃ
 	float SampleLight(Intersection& inter) const{
 		float emitAreaSum = 0;
 		for (unsigned int i = 0; i < objects.size(); ++i) {
@@ -52,18 +52,19 @@ public:
 		}
 		return pdf;
 	}
-	//	è®¡ç®—å…‰çº¿ä¸åœºæ™¯äº¤ç‚¹
+	//	¼ÆËã¹âÏßÓë³¡¾°½»µã
 	Intersection getIntersection(const Ray& ray)const {
 		return BVH->getIntersection(ray);
 	}
 
+
 	vec3 castRay(const Ray& ray, unsigned int depth) const{
 		// TO DO Implement Path Tracing Algorithm here
 		//  eye					light
-		//    â†–               â†— â†“ light.norm
-		//   -V â†–           â†— L
-		//        â†–   N   â†—
-		//          â†– â†‘ â†—
+		//    ¨I               ¨J ¡ı light.norm
+		//   -V ¨I           ¨J L
+		//        ¨I   N   ¨J
+		//          ¨I ¡ü ¨J
 		//            pos
 		//  ray = o + td
 		//  if the ray landed on the object,there's a direct contact point : pos
@@ -82,10 +83,10 @@ public:
 		//  if the random num > RR,stop caculate the reflect from other place(except light)
 		//  caculate L_indir
 		//  eye                 pos2
-		//    â†–               â†—
-		//   -V â†–           â†—indirL
-		//        â†–   N   â†—
-		//          â†– â†‘ â†—
+		//    ¨I               ¨J
+		//   -V ¨I           ¨JindirL
+		//        ¨I   N   ¨J
+		//          ¨I ¡ü ¨J
 		//            pos
 		//  wi_ = wi
 		//  here,use [pos.m->sample(wi_,N)] to get a wo_
@@ -98,63 +99,192 @@ public:
 		//  pos2.emssion = castray(reflectray,depth+1)
 		//  L_indir = pos2.emssion * brdf * cos_theta_ / pdf_ / RR
 
-		//	å°†ç»“æœè§„æ•´ï¼Œé˜²æ­¢å‡ºç°è´Ÿæ•°
+		//	½«½á¹û¹æÕû£¬·ÀÖ¹³öÏÖ¸ºÊı
 		auto format = [&](vec3& a) {
 			if (a.x < 0) a.x = 0;
 			if (a.y < 0) a.y = 0;
 			if (a.z < 0) a.z = 0;
 		};
-		//	å¦‚æœä»ç›¸æœºæ¥çš„å…‰çº¿æ²¡åŠæ³•å’Œåœºæ™¯æ¥è§¦ï¼Œè¯´æ˜æ²¡çœ‹åˆ°ä¸œè¥¿
+		//	Èç¹û´ÓÏà»úÀ´µÄ¹âÏßÃ»°ì·¨ºÍ³¡¾°½Ó´¥£¬ËµÃ÷Ã»¿´µ½¶«Î÷
 		Intersection inter = getIntersection(ray);
 		if (!inter.happened) {
 			return vec3(0.f);
 		}
-		//	å¦‚æœçœ‹åˆ°äº†ç¯å…‰ï¼Œä½†ä¸æ˜¯ç›´æ¥çœ‹åˆ°çš„(depth!=0)ï¼Œå°±ä¸ç®¡
+
 		if (inter.m->hasEmission()) {
-			return depth == 0 ? inter.emit : vec3(0.f);
+			return inter.emit;
 		}
+		//	Èç¹û¿´µ½ÁËµÆ¹â£¬µ«²»ÊÇÖ±½Ó¿´µ½µÄ(depth!=0),¾Í²»¹Ü,¼ÓËÙÊÕÁ²µÄtrick,µ«ÊÇ»áµ¼ÖÂÃ»ÓĞµÆ¹âµÄ·´Éä
+		//if (inter.m->hasEmission()) {
+		//	return depth == 0 ? inter.emit : vec3(0.f);
+		//}
 
 		Intersection lightpos;
-		float pdf = SampleLight(lightpos);	//	å¯¹ç¯å…‰é‡‡æ ·ï¼Œå¹¶è¿”å›å¯¹åº”çš„pdf
+		float lightpdf = SampleLight(lightpos);	//	¶ÔµÆ¹â²ÉÑù£¬²¢·µ»Ø¶ÔÓ¦µÄpdf
 
 		vec3 L = lightpos.coords - inter.coords;
-		float distance2 = L.dot(L);		//	è®¡ç®—è·ç¦»çš„å¹³æ–¹
-		vec3 V = -ray.Dir;				//	ray.diræ˜¯ä»ç›¸æœºçœ‹å‘äº¤ç‚¹ï¼Œä½†æ˜¯Véœ€è¦ä»äº¤ç‚¹åˆ°ç›¸æœºï¼Œæ‰€ä»¥V = -ray.dir
+		float distance2 = L.dot(L);		//	¼ÆËã¾àÀëµÄÆ½·½
+		vec3 V = -ray.Dir;				//	ray.dirÊÇ´ÓÏà»ú¿´Ïò½»µã£¬µ«ÊÇVĞèÒª´Ó½»µãµ½Ïà»ú£¬ËùÒÔV = -ray.dir
 		vec3 N = inter.normal;
 		L.normalize();
 
-		Ray inter2light(inter.coords, L);	//	è®¡ç®—ä»æ¥è§¦ç‚¹interå‡ºå‘æ²¿ç€L(wo)æ–¹å‘çš„å…‰çº¿æ˜¯å¦èƒ½ä¸ç¯å…‰æ¥è§¦
+		Ray inter2light(inter.coords, L);	//	¼ÆËã´Ó½Ó´¥µãinter³ö·¢ÑØ×ÅL(wo)·½ÏòµÄ¹âÏßÊÇ·ñÄÜÓëµÆ¹â½Ó´¥
 		Intersection t = getIntersection(inter2light);
 
+		//	¹âÔ´¶ÔinterµÄÖ±½Ó¹±Ï×
 		vec3 LightDir(0.f);
-		//	å¦‚æœæ‰“åˆ°äº†åˆ«çš„ç‰©ä½“ï¼Œnormå°±ä¸ä¸º0ï¼Œè¯´æ˜è·¯å¾„è¢«é˜»æŒ¡äº†
+		//	Èç¹û´òµ½ÁË±ğµÄÎïÌå£¬norm¾Í²»Îª0£¬ËµÃ÷Ö±½Ó¹âÕÕ¹âÂ·±»×èµ²ÁË
 		if (t.happened && (t.coords - lightpos.coords).norm() < 0.01f) {
-			//	ç›´æ¥å…‰ç…§è®¡ç®—å…¬å¼
-			//	lightpos.emit * inter.m->eval(V, L, N)è¿™é‡Œçš„ä¸¤ä¸ªvec3çš„ä¹˜æ³•æ˜¯cwiseProductï¼Œä¸æ˜¯ç‚¹ä¹˜dot
-			LightDir = lightpos.emit * inter.m->eval(V, L, N)
-				* L.dot(N) * lightpos.normal.dot(-L) / (pdf * distance2);
+			//	Ö±½Ó¹âÕÕ¼ÆËã¹«Ê½
+			//	lightpos.emit * inter.m->eval(V, L, N)ÕâÀïµÄÁ½¸övec3µÄ³Ë·¨ÊÇcwiseProduct£¬²»ÊÇµã³Ëdot
+			vec3 H = (L + V).normalized();
+			LightDir = lightpos.emit * inter.m->eval(V, L, N, H)
+				* L.dot(N) * lightpos.normal.dot(-L) / (lightpdf * distance2);
 			format(LightDir);
 		}
-		//	ä¿„ç½—æ–¯è½®ç›˜èµŒï¼Œåœæ­¢é€’å½’
+		//	¶íÂŞË¹ÂÖÅÌ¶Ä£¬Í£Ö¹µİ¹é
 		if (getrandom() > RussianRoulette) {
 			return LightDir;
 		}
-		//	å¦‚æœæ˜¯æ¬¡çº§åå°„
+
+		//	»·¾³¶ÔinterµÄ¼ä½Ó¹±Ï×
 		vec3 LightInDir(0.f);
-		vec3 inDirL = inter.m->sample(V, N).normalized();	//	é‡‡æ ·å‡ºå°„å…‰çº¿Lçš„æ–¹å‘
-		float inDirpdf = inter.m->pdf(V, inDirL, N);		//	è®¡ç®—pdfï¼ŒåŒ…æ‹¬DIFFUSEå’ŒMICROFACET
-		if (inDirpdf > 0) {
-			Ray next(inter.coords, inDirL);			
-			Intersection inter2 = getIntersection(next);	//	è®¡ç®—inDirLä¼šä¸ä¼šæ‰“åˆ°ç‰©ä½“
+		Material *m = inter.m;
+		vec3 H = inter.m->sample(V, N).normalized();						//	²ÉÑù°ë³ÌÏòÁ¿HµÄ·½Ïò
+
+		vec3 inDirL(0.f);
+		float inDirpdf = 0.f;
+
+		if (m->getType() == MICROFACET 
+			&& inter.m->isMetal == false && getrandom() > m->fresnel(V,H,m->F0)) {
+			//	ÒÔ1-FµÄ¸ÅÂÊÕÛÉä
+			//	ÕÛÉä·½Ïò
+			inDirL = m->refract(-V, H);
+		}
+		else {
+			//	·´Éä·½Ïò
+			inDirL = m->reflect(V, H);
+		}
+		inDirpdf = m->pdf(V, inDirL, N, H);
+		if (inDirpdf > 0.f) {
+			Ray next(inter.coords, inDirL);
+			Intersection inter2 = getIntersection(next);
 			if (inter2.happened) {
-				//	å¦‚æœè·Ÿç‰©ä½“æœ‰æ¥è§¦å°±å¯ä»¥è®¡ç®—æ¬¡çº§åå°„è´¡çŒ®
-				vec3 brdf = inter.m->eval(V, inDirL, N);
+				LightInDir = castRay(next, depth + 1)
+					* m->eval(V, inDirL, N, H) * abs(N.dot(inDirL)) / (inDirpdf * RussianRoulette);
+			}
+			format(LightInDir);
+		}
+		//	·µ»ØÖ±½Ó¹âÕÕºÍ¼ä½Ó¹âÕÕ½á¹û
+		return LightInDir + LightDir;
+	}
+
+	vec3 castRay1(const Ray& ray, unsigned int depth) const {
+		// TO DO Implement Path Tracing Algorithm here
+		//  eye					light
+		//    ¨I               ¨J ¡ı light.norm
+		//   -V ¨I           ¨J L
+		//        ¨I   N   ¨J
+		//          ¨I ¡ü ¨J
+		//            pos
+		//  ray = o + td
+		//  if the ray landed on the object,there's a direct contact point : pos
+		//  if the pos is bright,return the emission of this pos
+		//  else,randomly take a light from light L_i and get its' pdf with function [sampleLight(L_i, pdf)]
+		//  L_i is a bright place.not just a light
+
+		//  then distance = (L_i.postion - pos.postion)^2
+		//  wo = (L_i.postion-pos.postion).norm()
+		//  wi = ray.dir
+		//  cos_theta = N * wo
+		//  cos_theta_x = -wo * n'
+		//  f_r = pos.m->eval(wi,wo,N)
+		//  L_dir = L_i.emission * f_r * cos_theta * cos_theta_x / distance / pdf
+
+		//  if the random num > RR,stop caculate the reflect from other place(except light)
+		//  caculate L_indir
+		//  eye                 pos2
+		//    ¨I               ¨J
+		//   -V ¨I           ¨JindirL
+		//        ¨I   N   ¨J
+		//          ¨I ¡ü ¨J
+		//            pos
+		//  wi_ = wi
+		//  here,use [pos.m->sample(wi_,N)] to get a wo_
+		//  the reflectray = {pos,wo_}
+		//  caculate pos2 with intersect(reflectray)
+		//  the pos2 can't be a light so [pos2.m->hasEmission] should be [false]
+		//  the brdf = pos.m->eval(wi_,wo_,N)
+		//  cos_theta_ = N * wo_
+		//  pdf_ = pos.m.pdf(wi,N)
+		//  pos2.emssion = castray(reflectray,depth+1)
+		//  L_indir = pos2.emssion * brdf * cos_theta_ / pdf_ / RR
+
+		//	½«½á¹û¹æÕû£¬·ÀÖ¹³öÏÖ¸ºÊı
+		auto format = [&](vec3& a) {
+			if (a.x < 0) a.x = 0;
+			if (a.y < 0) a.y = 0;
+			if (a.z < 0) a.z = 0;
+		};
+		//	Èç¹û´ÓÏà»úÀ´µÄ¹âÏßÃ»°ì·¨ºÍ³¡¾°½Ó´¥£¬ËµÃ÷Ã»¿´µ½¶«Î÷
+		Intersection inter = getIntersection(ray);
+		if (!inter.happened) {
+			return vec3(0.f);
+		}
+
+		if (inter.m->hasEmission()) {
+			return inter.emit;
+		}
+		//	Èç¹û¿´µ½ÁËµÆ¹â£¬µ«²»ÊÇÖ±½Ó¿´µ½µÄ(depth!=0),¾Í²»¹Ü,¼ÓËÙÊÕÁ²µÄtrick,µ«ÊÇ»áµ¼ÖÂÃ»ÓĞµÆ¹âµÄ·´Éä
+		//if (inter.m->hasEmission()) {
+		//	return depth == 0 ? inter.emit : vec3(0.f);
+		//}
+
+		Intersection lightpos;
+		float lightpdf = SampleLight(lightpos);	//	¶ÔµÆ¹â²ÉÑù£¬²¢·µ»Ø¶ÔÓ¦µÄpdf
+
+		vec3 L = lightpos.coords - inter.coords;
+		float distance2 = L.dot(L);		//	¼ÆËã¾àÀëµÄÆ½·½
+		vec3 V = -ray.Dir;				//	ray.dirÊÇ´ÓÏà»ú¿´Ïò½»µã£¬µ«ÊÇVĞèÒª´Ó½»µãµ½Ïà»ú£¬ËùÒÔV = -ray.dir
+		vec3 N = inter.normal;
+		L.normalize();
+
+		Ray inter2light(inter.coords, L);	//	¼ÆËã´Ó½Ó´¥µãinter³ö·¢ÑØ×ÅL(wo)·½ÏòµÄ¹âÏßÊÇ·ñÄÜÓëµÆ¹â½Ó´¥
+		Intersection t = getIntersection(inter2light);
+
+		//	¹âÔ´¶ÔinterµÄÖ±½Ó¹±Ï×
+		vec3 LightDir(0.f);
+		//	Èç¹û´òµ½ÁË±ğµÄÎïÌå£¬norm¾Í²»Îª0£¬ËµÃ÷Ö±½Ó¹âÕÕ¹âÂ·±»×èµ²ÁË
+		if (t.happened && (t.coords - lightpos.coords).norm() < 0.01f) {
+			//	Ö±½Ó¹âÕÕ¼ÆËã¹«Ê½
+			//	lightpos.emit * inter.m->eval(V, L, N)ÕâÀïµÄÁ½¸övec3µÄ³Ë·¨ÊÇcwiseProduct£¬²»ÊÇµã³Ëdot
+			vec3 H = (L + V).normalized();
+			LightDir = lightpos.emit * inter.m->eval(V, L, N, H)
+				* L.dot(N) * lightpos.normal.dot(-L) / (lightpdf * distance2);
+			format(LightDir);
+		}
+		//	¶íÂŞË¹ÂÖÅÌ¶Ä£¬Í£Ö¹µİ¹é
+		if (getrandom() > RussianRoulette) {
+			return LightDir;
+		}
+		//	Õâ¸öÊÇ¶ÔµÄ
+		//	»·¾³¶ÔinterµÄ¼ä½Ó¹±Ï×
+		vec3 LightInDir(0.f);
+		vec3 inDirL(0.f);
+		float inDirpdf = 0.f;
+		vec3 H = inter.m->sample(V, N);
+		vec3 brdf = inter.m->caculateBSDF(V, N, H, inDirL, inDirpdf);
+		inDirpdf = inter.m->pdf(V, inDirL, N, H);
+		if (inDirpdf > 0.f) {
+			Ray next(inter.coords, inDirL);
+			Intersection nextinter = getIntersection(next);
+			if (nextinter.happened) {
 				LightInDir = castRay(next, depth + 1)
 					* brdf * abs(N.dot(inDirL)) / (inDirpdf * RussianRoulette);
-				format(LightInDir);
 			}
 		}
-		//	è¿”å›ç›´æ¥å…‰ç…§å’Œé—´æ¥å…‰ç…§ç»“æœ
+		format(LightInDir);		
+		//	·µ»ØÖ±½Ó¹âÕÕºÍ¼ä½Ó¹âÕÕ½á¹û
 		return LightInDir + LightDir;
 	}
 };

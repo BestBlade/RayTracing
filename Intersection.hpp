@@ -1,24 +1,24 @@
 #pragma once
 #include "Vector.hpp"
 #include "Material.hpp"
-//	å£°æ˜Objectç±»ï¼Œé¿å…å¤´æ–‡ä»¶äº¤å‰è°ƒç”¨
+//	ÉùÃ÷ObjectÀà£¬±ÜÃâÍ·ÎÄ¼ş½»²æµ÷ÓÃ
 class Object;
-//	äº¤ç‚¹ç±»
+//	½»µãÀà
 class Intersection {
 public:
-	bool happened;	//	ç›¸äº¤æ˜¯å¦å‘ç”Ÿ
-	float distance;	//	ç›¸äº¤è·ç¦»
-	Object* obj;	//	ç›¸äº¤ç‚¹ç‰©ä½“å±æ€§
-	Material* m;	//	ç›¸äº¤ç‚¹æè´¨
+	bool happened;	//	Ïà½»ÊÇ·ñ·¢Éú
+	float distance;	//	Ïà½»¾àÀë
+	Object* obj;	//	Ïà½»µãÎïÌåÊôĞÔ
+	Material* m;	//	Ïà½»µã²ÄÖÊ
 
-	vec3 coords;	//	ç›¸äº¤ç‚¹åæ ‡
-	vec3 normal;	//	ç›¸äº¤ç‚¹æ³•å‘é‡
-	vec3 emit;		//	ç›¸äº¤ç‚¹å‘å…‰å±æ€§
-	//	é»˜è®¤æ„é€ å‡½æ•°
+	vec3 coords;	//	Ïà½»µã×ø±ê
+	vec3 normal;	//	Ïà½»µã·¨ÏòÁ¿
+	vec3 emit;		//	Ïà½»µã·¢¹âÊôĞÔ
+	//	Ä¬ÈÏ¹¹Ôìº¯Êı
 	Intersection() {
-		happened = false;	//	ç›¸äº¤æœªå‘ç”Ÿ
-		distance = INT_MAX;	//	è·ç¦»æ— é™è¿œ
-		obj = nullptr;		//	å…¶ä½™å±æ€§éƒ½è®¾ä¸ºç©º
+		happened = false;	//	Ïà½»Î´·¢Éú
+		distance = INT_MAX;	//	¾àÀëÎŞÏŞÔ¶
+		obj = nullptr;		//	ÆäÓàÊôĞÔ¶¼ÉèÎª¿Õ
 		m = nullptr;
 		coords = vec3(0.f);
 		normal = vec3(0.f);

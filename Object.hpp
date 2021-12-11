@@ -7,10 +7,10 @@ class Object {
 public:
 	Object() {};
 	virtual ~Object() {};
-	virtual bool isIntersect(const Ray& ray) = 0;				//	åˆ¤æ–­æ˜¯å¦ä¸å…‰çº¿Rayç›¸äº¤
-	virtual Intersection getIntersection(const Ray& ray) = 0;	//	æ±‚äº¤ç‚¹
-	virtual Bounds getBounds()const = 0;						//	è·å–åŒ…å›´ç›’
-	virtual float getArea()const = 0;							//	è·å–é¢ç§¯
-	virtual float Sample(Intersection& p)const = 0;				//	å¯¹ç‰©ä½“é‡‡æ ·ï¼Œåªæœ‰lightç”¨åˆ°äº†
-	virtual bool hasEmit()const = 0;							//	åˆ¤æ–­æ˜¯å¦å‘å…‰
+	virtual bool isIntersect(const Ray& ray) = 0;				//	ÅĞ¶ÏÊÇ·ñÓë¹âÏßRayÏà½»
+	virtual Intersection getIntersection(const Ray& ray) = 0;	//	Çó½»µã
+	virtual Bounds getBounds()const = 0;						//	»ñÈ¡°üÎ§ºĞ
+	virtual float getArea()const = 0;							//	»ñÈ¡Ãæ»ı
+	virtual float Sample(Intersection& p)const = 0;				//	¶ÔÎïÌå²ÉÑù£¬Ö»ÓĞlightÓÃµ½ÁË
+	virtual bool hasEmit()const = 0;							//	ÅĞ¶ÏÊÇ·ñ·¢¹â
 };

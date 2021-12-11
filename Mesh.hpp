@@ -5,20 +5,20 @@
 #include "Triangle.hpp"
 #include "BVHTree.hpp"
 #include "Object.hpp"
-//	ç½‘æ ¼é¢ç±»
+//	Íø¸ñÃæÀà
 class Mesh : public Object {
 public:
-	unsigned int numTriangles;	//	ä¸‰è§’å½¢æ•°é‡
-	float area;					//	ç½‘æ ¼åŒ…å«ä¸‰è§’å½¢æ€»é¢ç§¯
-	BVHAccel* bvh;				//	ç½‘æ ¼æ„å»ºçš„BVHæ ‘æ ¹èŠ‚ç‚¹
-	Material* m;				//	å½“å‰æè´¨
-	Bounds boundingBox;			//	åŒ…å›´ç›’
+	unsigned int numTriangles;	//	Èı½ÇĞÎÊıÁ¿
+	float area;					//	Íø¸ñ°üº¬Èı½ÇĞÎ×ÜÃæ»ı
+	BVHAccel* bvh;				//	Íø¸ñ¹¹½¨µÄBVHÊ÷¸ù½Úµã
+	Material* m;				//	µ±Ç°²ÄÖÊ
+	Bounds boundingBox;			//	°üÎ§ºĞ
 
-	std::vector<Triangle> triangles;	//	å­˜å‚¨ä¸‰è§’å½¢çš„æ•°ç»„
+	std::vector<Triangle> triangles;	//	´æ´¢Èı½ÇĞÎµÄÊı×é
 
 	Mesh(const std::string& filename, Material* _m = new Material()) {
 		objl::Loader loader;
-		loader.LoadFile(filename);	//	ä½¿ç”¨OBJ_LOADERåŠ è½½æ¨¡å‹ï¼Œä¸€ä¸ª.objæ–‡ä»¶æ˜¯ä¸€ä¸ªMesh
+		loader.LoadFile(filename);	//	Ê¹ÓÃOBJ_LOADER¼ÓÔØÄ£ĞÍ£¬Ò»¸ö.objÎÄ¼şÊÇÒ»¸öMesh
 		area = 0;
 		m = _m;
 		numTriangles = 0;
@@ -29,7 +29,7 @@ public:
 		vec3 pMin(INT_MAX);
 		vec3 pMax(INT_MIN);
 
-		//	éå†æ‰€æœ‰é¡¶ç‚¹
+		//	±éÀúËùÓĞ¶¥µã
 		for (int i = 0; i < mesh.Vertices.size(); i += 3) {
 			vec3 face[3];
 
@@ -42,7 +42,7 @@ public:
 
 				face[j] = tmp;
 				
-				//	è®¡ç®—åŒ…å›´ç›’çš„é¡¶ç‚¹
+				//	¼ÆËã°üÎ§ºĞµÄ¶¥µã
 				pMin.x = std::min(pMin.x, tmp.x);
 				pMin.y = std::min(pMin.y, tmp.y);
 				pMin.z = std::min(pMin.z, tmp.z);
@@ -51,27 +51,27 @@ public:
 				pMax.y = std::max(pMax.y, tmp.y);
 				pMax.z = std::max(pMax.z, tmp.z);
 			}
-			//	å°†faceä¸­å­˜çš„ä¸‰ä¸ªé¡¶ç‚¹å­˜å…¥trianglesä¸­ï¼ŒåŸåœ°æ„é€ 
+			//	½«faceÖĞ´æµÄÈı¸ö¶¥µã´æÈëtrianglesÖĞ£¬Ô­µØ¹¹Ôì
 			triangles.emplace_back(face[0], face[1], face[2], _m);
-			++numTriangles;	//	è®¡æ•°+1
+			++numTriangles;	//	¼ÆÊı+1
 		}
-		//	æ„å»ºMeshåŒ…å›´ç›’
+		//	¹¹½¨Mesh°üÎ§ºĞ
 		boundingBox = Bounds(pMin, pMax);
 
 		std::vector<Object*> ptrs;
-		//	å°†ä¸‰è§’å½¢å­˜å…¥Object*æ•°ç»„ä¸­ï¼Œè®¡ç®—æ€»é¢ç§¯
+		//	½«Èı½ÇĞÎ´æÈëObject*Êı×éÖĞ£¬¼ÆËã×ÜÃæ»ı
 		for (auto &tri : triangles) {
 			ptrs.emplace_back(&tri);
 			area += tri.area;
 		}
-		//	åˆ©ç”¨Object*æ•°ç»„æ„å»ºå½“å‰Meshçš„BVHæ ‘
+		//	ÀûÓÃObject*Êı×é¹¹½¨µ±Ç°MeshµÄBVHÊ÷
 		bvh = new BVHAccel(ptrs);
 	}
-	//	åˆ¤æ–­æ˜¯å¦ç›¸äº¤
+	//	ÅĞ¶ÏÊÇ·ñÏà½»
 	bool isIntersect(const Ray& ray)  {
 		return getIntersection(ray).happened;
 	}
-	//	è·å–ç›¸äº¤ç‚¹
+	//	»ñÈ¡Ïà½»µã
 	Intersection getIntersection(const Ray& ray) {
 		Intersection inter;
 		if (bvh) {
@@ -79,21 +79,21 @@ public:
 		}
 		return inter;
 	}
-	//	æˆ–å–åŒ…å›´ç›’
+	//	»òÈ¡°üÎ§ºĞ
 	Bounds getBounds()const {
 		return boundingBox;
 	}
-	//	è·å–é¢ç§¯
+	//	»ñÈ¡Ãæ»ı
 	float getArea()const {
 		return area;
 	}
-	//	å¯¹Meshé‡‡æ ·ï¼Œåªæœ‰lightç”¨åˆ°äº†
+	//	¶ÔMesh²ÉÑù£¬Ö»ÓĞlightÓÃµ½ÁË
 	float Sample(Intersection& inter) const{
 		float pdf = bvh->Sample(inter);
 		inter.emit = m->getEmission();
 		return pdf;
 	}
-	//	åˆ¤æ–­è¿™ä¸ªMeshæ˜¯å¦ä¼šå‘å…‰
+	//	ÅĞ¶ÏÕâ¸öMeshÊÇ·ñ»á·¢¹â
 	bool hasEmit()const {
 		return m->hasEmission();
 	}

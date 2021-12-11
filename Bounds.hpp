@@ -2,11 +2,11 @@
 #include "Vector.hpp"
 #include "Ray.hpp"
 #include <array>
-//	åŒ…å›´ç›’ç±»
+//	°üÎ§ºĞÀà
 class Bounds {
 public:
 	vec3 pMin, pMax;
-	//	æ„é€ å‡½æ•°
+	//	¹¹Ôìº¯Êı
 	Bounds() {
 		pMax = vec3(INT_MIN);
 		pMin = vec3(INT_MAX);
@@ -25,11 +25,11 @@ public:
 		);
 	}
 
-	//	æ±‚å¯¹è§’çº¿
+	//	Çó¶Ô½ÇÏß
 	vec3 Diag() const {
 		return pMax - pMin;
 	};
-	//	æ±‚æœ€å¤§å…ƒç´ ä½ç½®ï¼Œç”¨äºåˆ›å»ºBVHæ ‘æ—¶åˆ†å‰²åŒ…å›´ç›’
+	//	Çó×î´óÔªËØÎ»ÖÃ£¬ÓÃÓÚ´´½¨BVHÊ÷Ê±·Ö¸î°üÎ§ºĞ
 	int MaxElemLoc() const {
 		vec3 diag = this->Diag();
 		if (diag.x > diag.y && diag.x > diag.z) {
@@ -42,7 +42,7 @@ public:
 			return 2;
 		}
 	};
-	//	æ±‚åŒ…å›´ç›’è¡¨é¢ç§¯
+	//	Çó°üÎ§ºĞ±íÃæ»ı
 	float SurfaceArea()const {
 		vec3 diag = this->Diag();
 		return 2 * (
@@ -50,11 +50,11 @@ public:
 			diag.y * diag.z +
 			diag.z * diag.x);
 	};
-	//	æ±‚åŒ…å›´ç›’ä¸­å¿ƒ
+	//	Çó°üÎ§ºĞÖĞĞÄ
 	vec3 CenterPos()const {
 		return pMin * 0.5f + pMax * 0.5f;
 	};
-	//	åŒ…å›´ç›’æ±‚äº¤
+	//	°üÎ§ºĞÇó½»
 	Bounds Intersect(const Bounds& b)const {
 		vec3 ppMin(
 			std::max(pMin.x, b.pMin.x),
@@ -68,7 +68,7 @@ public:
 		);
 		return Bounds(ppMin, ppMax);
 	};
-	//	æ±‚ç‚¹åœ¨åŒ…å›´ç›’çš„åç§»
+	//	ÇóµãÔÚ°üÎ§ºĞµÄÆ«ÒÆ
 	vec3 Offset(const vec3& p)const {
 		vec3 t = p - pMin;
 		if (pMax.x > pMin.x) {
@@ -82,7 +82,7 @@ public:
 		}
 		return t;
 	};
-	//	åˆ¤æ–­å…‰çº¿æ˜¯å¦ä¸åŒ…å›´ç›’ç›¸äº¤
+	//	ÅĞ¶Ï¹âÏßÊÇ·ñÓë°üÎ§ºĞÏà½»
 	bool isIntersect(const Ray& ray, std::array<bool, 3> dirIsNeg = {1,1,1})const {
 		vec3 posmin = pMin - ray.Ori;
 		vec3 posmax = pMax - ray.Ori;
@@ -109,7 +109,7 @@ public:
 
 		return tExit >= tEnter && tExit >= 0;
 	};
-	//	å–åŒ…å›´ç›’æœ€å¤§/æœ€å°ç‚¹ï¼Œæ²¡ç”¨åˆ°
+	//	È¡°üÎ§ºĞ×î´ó/×îĞ¡µã£¬Ã»ÓÃµ½
 	inline const vec3 operator[](int i)const {
 		if (i) {
 			return pMax;
@@ -118,21 +118,21 @@ public:
 	}
 };
 
-//	åˆ¤æ–­åŒ…å›´ç›’æ˜¯å¦ç›¸äº¤
+//	ÅĞ¶Ï°üÎ§ºĞÊÇ·ñÏà½»
 inline bool Overlaps(const Bounds& b1, const Bounds& b2) {
 	bool x = (b1.pMin.x <= b2.pMax.x) && (b1.pMax.x >= b2.pMin.x);
 	bool y = (b1.pMin.y <= b2.pMax.y) && (b1.pMax.y >= b2.pMin.y);
 	bool z = (b1.pMin.z <= b2.pMax.z) && (b1.pMax.z >= b2.pMin.z);
 	return (x && y && z);
 }
-//	åˆ¤æ–­ç‚¹æ˜¯å¦åœ¨åŒ…å›´ç›’å†…éƒ¨
+//	ÅĞ¶ÏµãÊÇ·ñÔÚ°üÎ§ºĞÄÚ²¿
 inline bool isInside(const Bounds& b1, const vec3& p) {
 	return
 		(b1.pMax.x >= p.x && b1.pMin.x <= p.x) &&
 		(b1.pMax.y >= p.y && b1.pMin.y <= p.y) &&
 		(b1.pMax.z >= p.z && b1.pMin.z <= p.z);
 }
-//	åŒ…å›´ç›’ä¸åŒ…å›´ç›’åˆå¹¶
+//	°üÎ§ºĞÓë°üÎ§ºĞºÏ²¢
 Bounds Union(const Bounds& p, const Bounds& q) {
 	vec3 ppMin(
 		std::min(p.pMin.x, q.pMin.x),
@@ -146,7 +146,7 @@ Bounds Union(const Bounds& p, const Bounds& q) {
 	);
 	return Bounds(ppMin, ppMax);
 }
-//	åŒ…å›´ç›’ä¸vecåˆå¹¶
+//	°üÎ§ºĞÓëvecºÏ²¢
 Bounds Union(const Bounds& p, const vec3& q) {
 	vec3 ppMin(
 		std::min(p.pMin.x, q.x),

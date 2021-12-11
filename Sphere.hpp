@@ -2,13 +2,13 @@
 #include "Object.hpp"
 #include "Material.hpp"
 
-//	çƒé¢ç±»ï¼Œæœªæµ‹è¯•æ˜¯å¦æ­£ç¡®
+//	ÇòÃæÀà£¬Î´²âÊÔÊÇ·ñÕıÈ·
 class Sphere :public Object {
 public:
-	float radius, radius2;		//	å®šä¹‰åŠå¾„rï¼ŒåŠå¾„å¹³æ–¹r2
-	float area;					//	çƒè¡¨é¢ç§¯
-	Material* m;				//	çƒçš„æè´¨
-	vec3 center;				//	çƒä¸­å¿ƒä½ç½®
+	float radius, radius2;		//	¶¨Òå°ë¾¶r£¬°ë¾¶Æ½·½r2
+	float area;					//	Çò±íÃæ»ı
+	Material* m;				//	ÇòµÄ²ÄÖÊ
+	vec3 center;				//	ÇòÖĞĞÄÎ»ÖÃ
 
 	Sphere(const vec3& c, float r, Material* m = new Material()) 
 		:center(c), radius(r), radius2(r* r), m(m), area(4 * PI * radius2) {}
@@ -16,34 +16,46 @@ public:
 	bool isIntersect(const Ray& ray) {
 		return getIntersection(ray).happened;
 	}
-	//	åˆ¤æ–­å…‰çº¿æ˜¯å¦ä¸çƒç›¸äº¤
+	//	ÅĞ¶Ï¹âÏßÊÇ·ñÓëÇòÏà½»,Ïà½ÏÓÚ½â·½³Ì·½·¨ÓĞÎó²î,µ«²»»áÒòÎªt¹ıĞ¡µ¼ÖÂÆæ¹ÖµÄÎÆÂ·
 	Intersection getIntersection(const Ray& ray) {
 		// O
-		//	â†˜ï¼ˆt1ï¼‰
-		//	 â†‘â†˜
-		//	 â†‘  â†˜
-		//	 Câ†’	â†’(t2)		
+		//	¨K£¨t1£©
+		//	 ¡ü¨K
+		//	 ¡ü  ¨K
+		//	 C¡ú	¡ú(t2)		
 
-		//	å‡è®¾ä»Oåˆ°Cä¸ºSï¼Œåˆ™Sä¸Då¤¹è§’ä¸ºé”è§’æ‰æœ‰å¯èƒ½å…‰çº¿ä¸çƒç›¸äº¤ï¼Œå¹¶ä¸”Oè¦åœ¨çƒå¤–éƒ¨
-		//	è®¡ç®—Såœ¨Dä¸Šçš„æŠ•å½±Lï¼Œæ ¹æ®S^2-L^2å¯ä»¥è®¡ç®—å‡ºåœ†å¿ƒCåˆ°å…‰çº¿çš„è·ç¦»h^2,å¦‚æœh^2 > r^2è¯´æ˜æ²¡æœ‰äº¤ç‚¹
-		//	æ ¹æ®r^2-h^2å¯ä»¥æ±‚å‡ºå‰²çº¿é•¿åº¦çš„ä¸€åŠ
-		//	å¯ä»¥æ ¹æ®Såœ¨Dä¸Šçš„æŠ•å½±lï¼Œé€šè¿‡+xå’Œ-xè®¡ç®—å‡ºä¸¤ä¸ªæ¥è§¦ç‚¹ï¼Œ-xä¸ºè¿‘çš„æ¥è§¦ç‚¹
+		//	¼ÙÉè´ÓOµ½CÎªS£¬ÔòSÓëD¼Ğ½ÇÎªÈñ½Ç²ÅÓĞ¿ÉÄÜ¹âÏßÓëÇòÏà½»£¬²¢ÇÒOÒªÔÚÇòÍâ²¿
+		//	¼ÆËãSÔÚDÉÏµÄÍ¶Ó°L£¬¸ù¾İS^2-L^2¿ÉÒÔ¼ÆËã³öÔ²ĞÄCµ½¹âÏßµÄ¾àÀëh^2,Èç¹ûh^2 > r^2ËµÃ÷Ã»ÓĞ½»µã
+		//	¸ù¾İr^2-h^2¿ÉÒÔÇó³ö¸îÏß³¤¶ÈµÄÒ»°ë
+		//	¿ÉÒÔ¸ù¾İSÔÚDÉÏµÄÍ¶Ó°l£¬Í¨¹ı+xºÍ-x¼ÆËã³öÁ½¸ö½Ó´¥µã£¬-xÎª½üµÄ½Ó´¥µã
 		vec3 o = ray.Ori;
 		vec3 d = ray.Dir;
 		Intersection inter;
 		vec3 S = center - o;
-		if (S.dot(d) < 0 || S.dot(S) < radius2) {
-			// å¤¹è§’å¤§äº90æˆ–è€…å…‰æºåœ¨å†…éƒ¨
+		float S2 = S.dot(S);
+		float l = S.dot(ray.Dir);
+
+		if (l < 0.f && S2 > radius2) {
 			return inter;
 		}
-		float l = S.dot(d);
-		float h2 = S.dot(S) - l * l;
+		float h2 = S2 - l * l;
 		if (h2 > radius2) {
-			//	åœ†å¿ƒåˆ°ç›´çº¿è·ç¦»å¤§äºåŠå¾„
 			return inter;
 		}
-		float x = mysqrt(radius2 - h2);		
-		float t = l - x;
+		float x = mysqrt(radius2 - h2);
+		float t;
+		if (S2 > radius2) {
+			t = l - x;
+		}
+		else {
+			if (m->getType() == DIFFUSE || m->isMetal) {
+				return inter;
+			}
+			t = x + l;
+		}
+		if (t < EPS) {
+			return inter;
+		}
 
 		inter.happened = true;
 		inter.coords = ray(t);
@@ -54,18 +66,46 @@ public:
 		inter.obj = this;
 		return inter;
 	}
+	//	ÅĞ¶Ï¹âÏßÊÇ·ñÓëÇòÏà½»,½â·½³Ì°æ±¾
+	Intersection getIntersection1(const Ray& ray) {
+		Intersection inter;
+		vec3 S = ray.Ori - center;
+		float a = 1.f;
+		//float a = ray.Dir.dot(ray.Dir);
+		float b = 2 * S.dot(ray.Dir);
+		float c = S.dot(S) - radius2;
+		float t0, t1;
+		if (!solveQuadratic(a, b, c, t0, t1)) {
+			return inter;
+		}
+		if (t0 < 0.f) { 
+			std::swap(t0, t1);
+		}
+		if (t0 < EPS) {
+			return inter;
+		}
+
+		inter.happened = true;
+		inter.coords = ray(t0);
+		inter.normal = (inter.coords - center).normalized();
+		inter.m = m;
+		inter.obj = this;
+		inter.distance = t0;
+		inter.emit = m->getEmission();
+		return inter;
+	}
 
 	Bounds getBounds() const {
-		vec3 pMax = center + radius;
-		vec3 pMin = center - radius;
+		vec3 pMax = center + radius * mysqrt(3);
+		vec3 pMin = center - radius * mysqrt(3);
 		return Bounds(pMin, pMax);
 	}
-	// å¯¹çƒé¢é‡‡æ ·ï¼Œæ„Ÿè§‰ç”¨ä¸åˆ°
+	// ¶ÔÇòÃæ²ÉÑù
 	float Sample(Intersection & inter) const{
 		float pdf = 1. / area;
-		// çƒé¢å‡åŒ€é‡‡æ ·
-		// thetaåœ¨0-2piä¸Šå‡åŒ€é‡‡æ ·
-		// phi = arccos(1 - 2 * t),tåœ¨0-1ä¸Šå‡åŒ€é‡‡æ ·
+		// ÇòÃæ¾ùÔÈ²ÉÑù
+		// thetaÔÚ0-2piÉÏ¾ùÔÈ²ÉÑù
+		// phi = arccos(1 - 2 * t),tÔÚ0-1ÉÏ¾ùÔÈ²ÉÑù
 		float costheta = cos(getrandom() * 2 * PI);
 		float sintheta = mysqrt(1.f - costheta * costheta);
 		float cosphi = 1.f - 2 * getrandom();

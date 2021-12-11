@@ -1,7 +1,7 @@
 #pragma once
 #include "Light.hpp"
 #include "Function.hpp"
-//	闈㈠厜婧愮被锛屽疄闄呬笂娌℃湁鐢ㄥ埌
+//	面光源类，实际上没有用到
 class AreaLight : public Light {
 public:
 	vec3 normal;

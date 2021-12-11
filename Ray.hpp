@@ -2,7 +2,7 @@
 #include "Vector.hpp"
 class Ray {
 public:
-	float t;			//	O + dD
+	float t;			//	O + tD
 	float tMin, tMax;
 	vec3 Ori;
 	vec3 Dir;
@@ -18,8 +18,8 @@ public:
 
 	Ray(const Ray& r) :Ori(r.Ori), Dir(r.Dir), Dirinv(r.Dirinv), t(r.t), tMin(r.tMin), tMax(r.tMax) {}
 
-	vec3 operator()(float tt)const {
-		//	è®¡ç®—äº¤ç‚¹ç”¨:ray(t)
+	vec3 operator()(float tt) const {
+		//	¼ÆËã½»µãÓÃ:ray(t)
 		return Ori + Dir * tt;
 	}
 };

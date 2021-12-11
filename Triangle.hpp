@@ -4,14 +4,14 @@
 #include "Object.hpp"
 #include "Material.hpp"
 
-//	ä¸‰è§’å½¢ç±»
+//	Èı½ÇĞÎÀà
 class Triangle : public Object {
 public:
-	vec3 v0, v1, v2;	//ä¸‰ä¸ªé¡¶ç‚¹
-	vec3 e1, e2;		//ä¸¤æ¡è¾¹
-	vec3 normal;		//æ³•çº¿
-	float area;			//é¢ç§¯
-	Material* m;		//æè´¨
+	vec3 v0, v1, v2;	//Èı¸ö¶¥µã
+	vec3 e1, e2;		//Á½Ìõ±ß
+	vec3 normal;		//·¨Ïß
+	float area;			//Ãæ»ı
+	Material* m;		//²ÄÖÊ
 
 	Triangle(const vec3& _v0, const vec3& _v1, const vec3& _v2, Material* _m = nullptr)
 		:v0(_v0), v1(_v1), v2(_v2), m(_m) {
@@ -36,8 +36,44 @@ public:
 		Intersection inter;
 
 		if (normal.dot(d) > 0) {
-			//å…‰çº¿æ–¹å‘ä¸æ³•çº¿æ–¹å‘ä¸€è‡´çš„æ—¶å€™ä¸å¯èƒ½ä¸ä¸‰è§’å½¢æ­£é¢ç›¸äº¤
-			return inter;
+			if (m->getType() == DIFFUSE || m->isMetal) {
+				//	¹âÏß·½ÏòÓë·¨Ïß·½ÏòÒ»ÖÂµÄÊ±ºò²»¿ÉÄÜÓëÈı½ÇĞÎÕıÃæÏà½»
+				return inter;
+			}
+			//vec3 u0 = v0;
+			//vec3 u1 = v2;
+			//vec3 u2 = v1;
+			//vec3 e1 = u1 - u0;
+			//vec3 e2 = u2 - u0;
+			//float u, v, t;
+			//vec3 S1 = d.cross(e2);
+			//float denom = S1.dot(e1);
+			//if (abs(denom) < EPS) {
+			//	return inter;
+			//}
+			//float denomInv = 1.f / denom;
+			//vec3 S = o - u0;
+			//u = S1.dot(S) * denomInv;
+			//if (u < 0 || u > 1) {
+			//	return inter;
+			//}
+			//vec3 S2 = S.cross(e1);
+			//v = S2.dot(d) * denomInv;
+			//if (v < 0 || v + u > 1) {
+			//	return inter;
+			//}
+			//t = S2.dot(e2) * denomInv;
+			//if (t < 0) {
+			//	return inter;
+			//}
+			//inter.coords = ray(t);
+			//inter.distance = t;
+			//inter.m = m;
+			//inter.normal = normal;
+			//inter.obj = this;
+			//inter.happened = true;
+			//inter.emit = m->getEmission();
+			//return inter;
 		}
 
 		float u, v, t;
@@ -79,7 +115,7 @@ public:
 	Bounds getBounds()const {
 		return Union(Bounds(v0, v1), v2);
 	}
-	// å¯¹ä¸‰è§’å½¢å…‰æºé‡‡æ ·
+	// ¶ÔÈı½ÇĞÎ¹âÔ´²ÉÑù
 	float Sample(Intersection& inter) const{
 		float x = mysqrt(getrandom());
 		float y = getrandom();

@@ -92,7 +92,7 @@ public:
 	vec3 operator-(float r) const {
 		return vec3(x - r, y - r, z - r);
 	}
-	//	cwiseProduct锛屼笉鏄痙ot
+	//	cwiseProduct，不是dot
 	vec3 operator*(const vec3& v) const {
 		return vec3(x * v.x, y * v.y, z * v.z);
 	}
@@ -130,17 +130,28 @@ public:
 	float norm() const {
 		return mysqrt(x * x + y * y + z * z);
 	}
-	void normalize() {
-		float rinv = mysqrtinv(x * x + y * y + z * z);
-		x *= rinv;
-		y *= rinv;
-		z *= rinv;
-		return;
-	}
+
 	vec3 normalized() const {
-		float rinv = mysqrtinv(x * x + y * y + z * z);
-		return vec3(x * rinv, y * rinv, z * rinv);
+		//	用下面的结果很怪，不知道为什么
+		float r = mysqrt(x * x + y * y + z * z);
+		return vec3(x / r, y / r, z / r);
+		//float rinv = mysqrtinv(x * x + y * y + z * z);
+		//return vec3(x * rinv, y * rinv, z * rinv);
 	}
+	void normalize() {		
+		float r = mysqrt(x * x + y * y + z * z);
+		x /= r;
+		y /= r;
+		z /= r;
+		return;
+		//	这个就不影响
+		//float rinv = mysqrtinv(x * x + y * y + z * z);
+		//x *= rinv;
+		//y *= rinv;
+		//z *= rinv;
+		//return;
+	}
+
 
 	static vec3 Min(const vec3& u, const vec3& v) {
 		return vec3(

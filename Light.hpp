@@ -1,6 +1,6 @@
 #pragma once
 #include "Vector.hpp"
-//	灯光类，没用到
+//	�ƹ��࣬û�õ�
 class Light {
 public:
 	vec3 position;

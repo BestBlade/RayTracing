@@ -3,14 +3,14 @@
 #include "Object.hpp"
 #include "Intersection.hpp"
 #include <cassert>
-//	BVHèŠ‚ç‚¹
+//	BVH½Úµã
 struct BVHNode {
-	float area;		//	èŠ‚ç‚¹åŒ…å«ç‰©ä½“é¢ç§¯
-	BVHNode* left;	//	èŠ‚ç‚¹å·¦å­©å­
-	BVHNode* right;	//	èŠ‚ç‚¹å³å­©å­
-	Object* obj;	//	èŠ‚ç‚¹åŒ…å«ç‰©ä½“ç±»å‹
-	Bounds bounds;	//	èŠ‚ç‚¹åŒ…å«ç‰©ä½“åŒ…å›´ç›’
-	//	é»˜è®¤æ„é€ 
+	float area;		//	½Úµã°üº¬ÎïÌåÃæ»ı
+	BVHNode* left;	//	½Úµã×óº¢×Ó
+	BVHNode* right;	//	½ÚµãÓÒº¢×Ó
+	Object* obj;	//	½Úµã°üº¬ÎïÌåÀàĞÍ
+	Bounds bounds;	//	½Úµã°üº¬ÎïÌå°üÎ§ºĞ
+	//	Ä¬ÈÏ¹¹Ôì
 	BVHNode() {
 		bounds = Bounds();
 		left = nullptr;
@@ -21,16 +21,16 @@ struct BVHNode {
 
 class BVHAccel {
 private:
-	//	ä¸çŸ¥é“åŸä»£ç å†™æ¥å¹²å•¥ç”¨çš„ï¼Œæˆ‘ç”¨æ¥ç»Ÿè®¡èŠ‚ç‚¹é‡ŒåŒ…å«å¤šå°‘ä¸‰è§’å½¢
+	//	²»ÖªµÀÔ­´úÂëĞ´À´¸ÉÉ¶ÓÃµÄ£¬ÎÒÓÃÀ´Í³¼Æ½ÚµãÀï°üº¬¶àÉÙÈı½ÇĞÎ
 	const int maxPrimsInNode;
-	//	BVHæ ‘æ ¹èŠ‚ç‚¹
+	//	BVHÊ÷¸ù½Úµã
 	BVHNode* root;
-	//	å›¾å…ƒå­˜å‚¨
+	//	Í¼Ôª´æ´¢
 	std::vector<Object*> primitives;
-	//	å°†å­˜å¥½å›¾å…ƒçš„vectorç”¨æ¥æ„å»ºBVHæ ‘
+	//	½«´æºÃÍ¼ÔªµÄvectorÓÃÀ´¹¹½¨BVHÊ÷
 	BVHNode* Build(std::vector<Object*> objects) {
 		BVHNode* node = new BVHNode();
-		//	å¶èŠ‚ç‚¹
+		//	Ò¶½Úµã
 		if (objects.size() == 1) {
 			node->area = objects[0]->getArea();
 			node->bounds = objects[0]->getBounds();
@@ -39,7 +39,7 @@ private:
 			node->right = nullptr;
 			return node;
 		}
-		//	å¶èŠ‚ç‚¹
+		//	Ò¶½Úµã
 		else if(objects.size() == 2) {
 			node->left = Build(std::vector<Object*> {objects[0]});
 			node->right = Build(std::vector<Object*> {objects[1]});
@@ -47,19 +47,19 @@ private:
 			node->bounds = Union(node->left->bounds, node->right->bounds);
 			return node;
 		}
-		//	éå¶èŠ‚ç‚¹
+		//	·ÇÒ¶½Úµã
 		else {			
-			//	è®¡ç®—å½“å‰èŠ‚ç‚¹åŒ…å›´ç›’
+			//	¼ÆËãµ±Ç°½Úµã°üÎ§ºĞ
 			Bounds bounds;
 			for (int i = 0; i < objects.size(); ++i) {
 				bounds = Union(bounds, objects[i]->getBounds());
 			}
-			//	è®¡ç®—åŒ…å›´ç›’çš„XYZæ–¹å‘æœ€å¤§å€¼ï¼Œç„¶åæŒ‰ç…§æœ€å¤§æ–¹å‘æ’åºï¼Œç“œåˆ†
+			//	¼ÆËã°üÎ§ºĞµÄXYZ·½Ïò×î´óÖµ£¬È»ºó°´ÕÕ×î´ó·½ÏòÅÅĞò£¬¹Ï·Ö
 			int dim = bounds.MaxElemLoc();
 
 			if (dim == 0) {
-				//	è‡ªå®šä¹‰æ’åºï¼Œå¦‚æœdim == 0ï¼Œè¯´æ˜å½“å‰èŠ‚ç‚¹åŒ…å›´ç›’xæ–¹å‘æœ€é•¿
-				//	æ²¿ç€xæ–¹å‘æ’åº
+				//	×Ô¶¨ÒåÅÅĞò£¬Èç¹ûdim == 0£¬ËµÃ÷µ±Ç°½Úµã°üÎ§ºĞx·½Ïò×î³¤
+				//	ÑØ×Åx·½ÏòÅÅĞò
 				sort(objects.begin(), objects.end(), [&](Object* obj1, Object* obj2) {
 					return obj1->getBounds().Diag().x < obj2->getBounds().Diag().x;
 					});
@@ -74,7 +74,7 @@ private:
 					return obj1->getBounds().Diag().z < obj2->getBounds().Diag().z;
 					});
 			}
-			//	å°†æ’å¥½åºçš„objåˆ†ä¸ºå‰åä¸¤éƒ¨åˆ†
+			//	½«ÅÅºÃĞòµÄobj·ÖÎªÇ°ºóÁ½²¿·Ö
 			auto begin = objects.begin();
 			auto end = objects.end();
 			auto mid = begin + objects.size() / 2;
@@ -83,7 +83,7 @@ private:
 			std::vector<Object*> right = std::vector<Object*>(mid, end);
 
 			assert(left.size() + right.size() == objects.size());
-			//	é€’å½’åˆ›å»ºå·¦å³å­æ ‘
+			//	µİ¹é´´½¨×óÓÒ×ÓÊ÷
 			node->left = Build(left);
 			node->right = Build(right);
 			node->bounds = bounds;
@@ -92,10 +92,10 @@ private:
 		return node;
 	}
 public:
-	enum class SplitMethod { NAIVE };	//	åˆ›å»ºBVHæ ‘çš„æ¨¡å¼
+	enum class SplitMethod { NAIVE };	//	´´½¨BVHÊ÷µÄÄ£Ê½
 	const SplitMethod splitMethod;
 
-	//	å¯¹ä¼ è¿›æ¥çš„objectæ•°ç»„pè¦ç”¨moveæ„é€ 
+	//	¶Ô´«½øÀ´µÄobjectÊı×épÒªÓÃmove¹¹Ôì
 	BVHAccel(std::vector<Object*> p, int maxPrimsInNode = 255
 		, SplitMethod s = SplitMethod::NAIVE) 
 		: maxPrimsInNode(std::min(255, maxPrimsInNode)), splitMethod(s) , primitives(std::move(p)) {
@@ -106,7 +106,7 @@ public:
 			return;
 		}
 
-		root = Build(primitives);	//	åˆ›å»ºBVHæ ‘ï¼Œå…¶ä½™çš„å¥å­æ—¶è®¡æ—¶çš„
+		root = Build(primitives);	//	´´½¨BVHÊ÷£¬ÆäÓàµÄ¾ä×ÓÊ±¼ÆÊ±µÄ
 
 		time(&tEnd);
 		float diff = difftime(tEnd, tStart);
@@ -117,12 +117,12 @@ public:
 		std::cout << "\r BVH Tree Generation Complete !\nTime cost : "
 			<< hour << " hours " << min << " min " << sec << " sec \n\n";
 	}
-	//	åˆ¤æ–­å…‰çº¿æ˜¯å¦ä¸BVHæ ‘ç›¸äº¤
+	//	ÅĞ¶Ï¹âÏßÊÇ·ñÓëBVHÊ÷Ïà½»
 	bool isIntersect(const Ray& ray)const {
-		//	è¿”å›æ±‚äº¤çš„ç»“æœ
+		//	·µ»ØÇó½»µÄ½á¹û
 		return getIntersection(ray).happened;
 	}
-	//	å…‰çº¿ä¸BVHæ ‘æ±‚äº¤ï¼Œè¿”å›äº¤ç‚¹inter
+	//	¹âÏßÓëBVHÊ÷Çó½»£¬·µ»Ø½»µãinter
 	Intersection getIntersection(const Ray& ray)const {
 		Intersection inter;
 		if (root == nullptr) {
@@ -130,47 +130,47 @@ public:
 		}
 		return getIntersection(root, ray);
 	} 
-	//	é€’å½’ï¼Œå…‰çº¿ä¸èŠ‚ç‚¹nodeæ±‚äº¤
+	//	µİ¹é£¬¹âÏßÓë½ÚµãnodeÇó½»
 	Intersection getIntersection(BVHNode* node, const Ray& ray)const {
 		Intersection inter;
 
-		auto [x, y, z] = ray.Dir;	//	C++17æ ‡å‡†ï¼Œç»“æ„åŒ–ç»‘å®š
-		std::array<bool, 3> dirIsNeg = { x > 0, y > 0, z > 0 };	//	è®¡ç®—å…‰çº¿æ˜¯å¦åå‘	
-		//	åˆ¤æ–­å…‰çº¿æ˜¯å¦ä¸èŠ‚ç‚¹åŒ…å›´ç›’ç›¸äº¤ï¼Œä¸ç›¸äº¤ç›´æ¥è¿”å›inter
+		auto [x, y, z] = ray.Dir;	//	C++17±ê×¼£¬½á¹¹»¯°ó¶¨
+		std::array<bool, 3> dirIsNeg = { x > 0, y > 0, z > 0 };	//	¼ÆËã¹âÏßÊÇ·ñ·´Ïò	
+		//	ÅĞ¶Ï¹âÏßÊÇ·ñÓë½Úµã°üÎ§ºĞÏà½»£¬²»Ïà½»Ö±½Ó·µ»Øinter
 		if (!node->bounds.isIntersect(ray, dirIsNeg)) {
 			return inter;
 		}
-		//	ä¸å¶ç»“ç‚¹æ±‚äº¤
+		//	ÓëÒ¶½áµãÇó½»
 		if (!node->left && !node->right) {
 			inter = node->obj->getIntersection(ray);
 			return inter;
 		}
-		//	è®¡ç®—ä¸å·¦å³å­æ ‘çš„äº¤ç‚¹ï¼Œè¿”å›æœ€è¿‘çš„äº¤ç‚¹
+		//	¼ÆËãÓë×óÓÒ×ÓÊ÷µÄ½»µã£¬·µ»Ø×î½üµÄ½»µã
 		Intersection hit1 = getIntersection(node->left, ray);
 		Intersection hit2 = getIntersection(node->right, ray);
 		return hit1.distance < hit2.distance ? hit1 : hit2;
 	}
 
-	// å¯¹ç‰©ä½“é‡‡æ ·ï¼Œåªæœ‰lightç”¨åˆ°äº†
+	// ¶ÔÎïÌå²ÉÑù£¬Ö»ÓĞlightÓÃµ½ÁË
 	float Sample(Intersection& inter) {
 		float p = mysqrt(getrandom()) * root->area;
 		float pdf = getSample(root, p, inter);
 		pdf /= root->area;
 		return pdf;
 	}
-	//	é€’å½’å¯¹ç‰©ä½“é‡‡æ ·ï¼Œåªæœ‰lightç”¨åˆ°äº†
+	//	µİ¹é¶ÔÎïÌå²ÉÑù£¬Ö»ÓĞlightÓÃµ½ÁË
 	float getSample(BVHNode* node, float p, Intersection& inter) {
-		//	åœ¨å¶ç»“ç‚¹é‡‡æ ·
+		//	ÔÚÒ¶½áµã²ÉÑù
 		if (node->left == nullptr || node->right == nullptr) {
 			float pdf = node->obj->Sample(inter);
 			pdf *= node->area;
 			return pdf;
 		}
-		//	å¦‚æœæ¦‚ç‡å°äºå·¦è¾¹é¢ç§¯åœ¨å·¦å­æ ‘é‡‡æ ·
+		//	Èç¹û¸ÅÂÊĞ¡ÓÚ×ó±ßÃæ»ıÔÚ×ó×ÓÊ÷²ÉÑù
 		if (p < node->left->area) {
 			return getSample(node->left, p, inter);
 		}
-		//	å¦åˆ™ä»¥p-å·¦å­æ ‘é¢ç§¯çš„æ¦‚ç‡åœ¨å³å­æ ‘é‡‡æ ·
+		//	·ñÔòÒÔp-×ó×ÓÊ÷Ãæ»ıµÄ¸ÅÂÊÔÚÓÒ×ÓÊ÷²ÉÑù
 		else {
 			return getSample(node->right, p - node->left->area, inter);
 		}

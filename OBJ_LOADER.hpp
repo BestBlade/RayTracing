@@ -1,5 +1,4 @@
 #pragma once
-#pragma once
 // OBJ_Loader.h - A Single Header OBJ Model Loader
 // This loader is created by Robert Smith.
 // https://github.com/Bly7/OBJ-Loader
@@ -17,9 +16,9 @@
 // Print progress to console while loading (large models)
 //#define OBJL_CONSOLE_OUTPUT
 
-// Namespace: OBJL
+// NamEPSace: OBJL
 //
-// Description: The namespace that holds eveyrthing that
+// Description: The namEPSace that holds eveyrthing that
 //	is needed and used for the OBJ Model Loader
 namespace objl
 {
@@ -213,9 +212,9 @@ namespace objl
         std::optional<Material> MeshMaterial;
     };
 
-    // Namespace: Math
+    // NamEPSace: Math
     //
-    // Description: The namespace that holds all of the math
+    // Description: The namEPSace that holds all of the math
     //	functions need for OBJL
     namespace math
     {
@@ -255,9 +254,9 @@ namespace objl
         }
     }
 
-    // Namespace: Algorithm
+    // NamEPSace: Algorithm
     //
-    // Description: The namespace that holds all of the
+    // Description: The namEPSace that holds all of the
     // Algorithms needed for OBJL
     namespace algorithm
     {
@@ -688,7 +687,7 @@ namespace objl
             {
                 std::string matname = MeshMatNames[i];
 
-                // Find corresponding material name in loaded materials
+                // Find corrEPSonding material name in loaded materials
                 // when found copy material variables into mesh material
                 for (int j = 0; j < LoadedMaterials.size(); j++)
                 {
@@ -831,7 +830,7 @@ namespace objl
         }
 
         // Triangulate a list of vertices into a face by printing
-        //	inducies corresponding with triangles within it
+        //	inducies corrEPSonding with triangles within it
         void VertexTriangluation(std::vector<unsigned int>& oIndices,
             const std::vector<Vertex>& iVerts)
         {
